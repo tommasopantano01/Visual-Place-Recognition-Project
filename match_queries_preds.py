@@ -14,38 +14,38 @@ from matching.utils import get_default_device
 
 
 # ---------------------------------------------------------------------------
-# Extension 6.1 — Threshold lookup table
+# Extension 6.1 — Tabella delle threshold
 #
-# Key:   (threshold_type, matcher_name, vpr_method)
-# Value: int — if num_inliers of top-1 > value, skip matching the other 19
+# Chiave:  (tipo_threshold, nome_matcher, metodo_vpr)
+# Valore:  int — se num_inliers del top-1 > valore, salta il matching degli altri 19
 #
-# 4 threshold types × 4 (matcher, vpr_method) combinations = 16 entries.
-# TODO: replace None with the actual values once estimated on the datasets.
+# 4 tipi di threshold × 4 combinazioni (matcher, metodo_vpr) = 16 valori.
+# TODO: sostituire None con i valori reali una volta stimati sui dataset.
 # ---------------------------------------------------------------------------
 THRESHOLDS = {
-    # threshold estimated only on "easy" query-DB pairs
-    ("easy_only",  "superpoint-lg", "cosplace"):  None,  # TODO
-    ("easy_only",  "superpoint-lg", "method2"):   None,  # TODO
-    ("easy_only",  "superpoint-lg", "method3"):   None,  # TODO
-    ("easy_only",  "superpoint-lg", "method4"):   None,  # TODO
-    # threshold estimated on "easy" + "hard" pairs
-    ("easy_hard",  "superpoint-lg", "cosplace"):  None,  # TODO
-    ("easy_hard",  "superpoint-lg", "method2"):   None,  # TODO
-    ("easy_hard",  "superpoint-lg", "method3"):   None,  # TODO
-    ("easy_hard",  "superpoint-lg", "method4"):   None,  # TODO
-    # hard threshold tuned for computational savings (adaptive)
-    ("adaptive",   "superpoint-lg", "cosplace"):  None,  # TODO
-    ("adaptive",   "superpoint-lg", "method2"):   None,  # TODO
-    ("adaptive",   "superpoint-lg", "method3"):   None,  # TODO
-    ("adaptive",   "superpoint-lg", "method4"):   None,  # TODO
-    # decision boundary from a fitted logistic regression
-    ("logistic",   "superpoint-lg", "cosplace"):  None,  # TODO
-    ("logistic",   "superpoint-lg", "method2"):   None,  # TODO
-    ("logistic",   "superpoint-lg", "method3"):   None,  # TODO
-    ("logistic",   "superpoint-lg", "method4"):   None,  # TODO
+    # metodo1: 
+    ("metodo1",  "megaloc",   "superpoint-lg"):  None,
+    ("metodo1",  "megaloc",   "loftr"):           None,
+    ("metodo1",  "cosplace",  "superpoint-lg"):  None,
+    ("metodo1",  "cosplace",  "loftr"):           None,
+    # metodo2: 
+    ("metodo2",  "megaloc",   "superpoint-lg"):  None,
+    ("metodo2",  "megaloc",   "loftr"):           None,
+    ("metodo2",  "cosplace",  "superpoint-lg"):  None, 
+    ("metodo2",  "cosplace",  "loftr"):           None,
+    # metodo3: 
+    ("metodo3",  "megaloc",   "superpoint-lg"):  None,
+    ("metodo3",  "megaloc",   "loftr"):           None,
+    ("metodo3",  "cosplace",  "superpoint-lg"):  None,
+    ("metodo3",  "cosplace",  "loftr"):           None,
+    # metodo4:
+    ("metodo4",  "megaloc",   "superpoint-lg"):  None,
+    ("metodo4",  "megaloc",   "loftr"):           None,
+    ("metodo4",  "cosplace",  "superpoint-lg"):  None,
+    ("metodo4",  "cosplace",  "loftr"):           None,
 }
 
-THRESHOLD_TYPES = ["easy_only", "easy_hard", "adaptive", "logistic"]
+THRESHOLD_TYPES = ["metodo1", "metodo2", "metodo3", "metodo4"]
 
 
 def parse_arguments():
