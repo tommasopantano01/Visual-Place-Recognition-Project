@@ -1,8 +1,8 @@
 """
-Stima la threshold num_inliers per metodo3 — stima non parametrica di P(helps).
+Stima la threshold num_inliers per metodo4 — P(helps) locale su train.
 
 Uso:
-    python extension_6_1/nonparametric_threshold_estimator.py \\
+    python extension/helps_estimator.py \\
         --train-csv  path/to/train_query_level.csv \\
         --val-csv    path/to/val_query_level.csv   \\
         --vpr-method megaloc                        \\
