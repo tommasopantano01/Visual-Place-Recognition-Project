@@ -16,24 +16,23 @@ from matching.utils import get_default_device
 # ---------------------------------------------------------------------------
 # Extension 6.1 — Tabella delle threshold
 #
-# Chiave:  (tipo di threshold, metodo_vpr, nome_matcher)
-# Valore:  valore numerico threshdol dato dal metodo
+# Chiave:  (tipo_threshold, metodo_vpr, matcher)
+# Valore:  valore numerico della threshold dato dal metodo
 #
-# 4 tipi di threshold × 4 combinazioni (matcher, metodo_vpr) = 16 valori.
 # TODO: sostituire None con i valori reali una volta stimati sui dataset.
 # ---------------------------------------------------------------------------
 THRESHOLDS = {
-    # metodo1: 
+    # metodo1:
     ("metodo1",  "megaloc",   "superpoint-lg"):  None,
     ("metodo1",  "megaloc",   "loftr"):           None,
     ("metodo1",  "cosplace",  "superpoint-lg"):  None,
     ("metodo1",  "cosplace",  "loftr"):           None,
-    # metodo2: 
+    # metodo2:
     ("metodo2",  "megaloc",   "superpoint-lg"):  None,
     ("metodo2",  "megaloc",   "loftr"):           None,
-    ("metodo2",  "cosplace",  "superpoint-lg"):  None, 
+    ("metodo2",  "cosplace",  "superpoint-lg"):  None,
     ("metodo2",  "cosplace",  "loftr"):           None,
-    # metodo3: 
+    # metodo3:
     ("metodo3",  "megaloc",   "superpoint-lg"):  None,
     ("metodo3",  "megaloc",   "loftr"):           None,
     ("metodo3",  "cosplace",  "superpoint-lg"):  None,
@@ -54,7 +53,7 @@ def parse_arguments():
     parser.add_argument("--preds-dir", type=str, help="directory with predictions of a VPR model")
     parser.add_argument("--out-dir", type=str, default=None, help="output directory of image matching results")
 
-    # Choose matcher
+    # Scelta del matcher
     parser.add_argument(
         "--matcher",
         type=str,
@@ -68,26 +67,26 @@ def parse_arguments():
     parser.add_argument("--start-query", type=int, default=-1, help="query to start from")
     parser.add_argument("--num-queries", type=int, default=-1, help="number of queries")
 
-    # Extension 6.1: adaptive re-ranking skip
+    # Extension 6.1: skip adattivo del re-ranking
     parser.add_argument(
         "--threshold-type",
         type=str,
         default=None,
         choices=THRESHOLD_TYPES,
-        help="(Extension 6.1) if set, skip re-ranking when top-1 inliers exceed the threshold",
+        help="(Extension 6.1) se impostato, esegue IM su tutti i top-20 solo se num_inliers del top-1 < threshold",
     )
     parser.add_argument(
         "--vpr-method",
         type=str,
         default=None,
-        help="(Extension 6.1) VPR method used to generate the predictions (required when --threshold-type is set)",
+        help="(Extension 6.1) metodo VPR usato per generare le predizioni (obbligatorio con --threshold-type)",
     )
 
     return parser.parse_args()
 
 
 def get_threshold(threshold_type, vpr_method, matcher_name):
-    """Restituisce la threshold per la combinazione (tipo, metodo_vpr, matcher)."""
+    """Restituisce la threshold per la combinazione (tipo_threshold, metodo_vpr, matcher)."""
     key = (threshold_type, vpr_method, matcher_name)
     if key not in THRESHOLDS:
         raise ValueError(f"Nessuna threshold definita per la chiave {key}. Aggiungila a THRESHOLDS.")
@@ -133,29 +132,27 @@ def main(args):
         img0 = matcher.load_image(q_path, resize=img_size)
 
         if use_threshold:
-            # --- Extension 6.1: match only top-1 first, then decide ---
-
+            # --- Extension 6.1: esegui IM solo sul top-1, poi decidi ---
             img1 = matcher.load_image(pred_paths[0], resize=img_size)
             result_top1 = matcher(deepcopy(img0), img1)
             result_top1["all_desc0"] = result_top1["all_desc1"] = None
             results.append(result_top1)
 
-            if result_top1["num_inliers"] > threshold:
-                # Top-1 is confident: skip the remaining candidates.
-                # Fill with num_inliers=0 so reranking.py gets the expected
-                # num_preds entries and naturally ranks top-1 first.
-                for _ in range(num_preds - 1):
-                    results.append({"num_inliers": 0})
-            else:
-                # Top-1 is not confident: match all remaining candidates normally.
+            if result_top1["num_inliers"] < threshold:
+                # top-1 non è affidabile: esegui IM su tutti i restanti candidati
                 for pred_path in pred_paths[1:num_preds]:
                     img1 = matcher.load_image(pred_path, resize=img_size)
                     result = matcher(deepcopy(img0), img1)
                     result["all_desc0"] = result["all_desc1"] = None
                     results.append(result)
+            else:
+                # top-1 è affidabile: salta i restanti
+                # num_inliers=0 li manda automaticamente in fondo al reranking
+                for _ in range(num_preds - 1):
+                    results.append({"num_inliers": 0})
 
         else:
-            # --- Standard path: match all predictions (original behaviour) ---
+            # --- Comportamento originale: IM su tutte le predizioni ---
             for pred_path in pred_paths[:num_preds]:
                 img1 = matcher.load_image(pred_path, resize=img_size)
                 result = matcher(deepcopy(img0), img1)
