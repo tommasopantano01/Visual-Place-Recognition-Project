@@ -16,8 +16,8 @@ from matching.utils import get_default_device
 # ---------------------------------------------------------------------------
 # Extension 6.1 — Tabella delle threshold
 #
-# Chiave:  (tipo_threshold, nome_matcher, metodo_vpr)
-# Valore:  int — se num_inliers del top-1 > valore, salta il matching degli altri 19
+# Chiave:  (tipo di threshold, metodo_vpr, nome_matcher)
+# Valore:  valore dato dal metodo
 #
 # 4 tipi di threshold × 4 combinazioni (matcher, metodo_vpr) = 16 valori.
 # TODO: sostituire None con i valori reali una volta stimati sui dataset.
@@ -86,14 +86,14 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def get_threshold(threshold_type, matcher_name, vpr_method):
-    """Return the inlier threshold for the given (type, matcher, vpr_method) combination."""
-    key = (threshold_type, matcher_name, vpr_method)
+def get_threshold(threshold_type, vpr_method, matcher_name):
+    """Restituisce la threshold per la combinazione (tipo, metodo_vpr, matcher)."""
+    key = (threshold_type, vpr_method, matcher_name)
     if key not in THRESHOLDS:
-        raise ValueError(f"No threshold defined for key {key}. Add it to THRESHOLDS.")
+        raise ValueError(f"Nessuna threshold definita per la chiave {key}. Aggiungila a THRESHOLDS.")
     value = THRESHOLDS[key]
     if value is None:
-        raise ValueError(f"Threshold for {key} is not filled in yet (None). Update THRESHOLDS.")
+        raise ValueError(f"La threshold per {key} non è ancora stata inserita (None). Aggiorna THRESHOLDS.")
     return value
 
 
@@ -107,12 +107,12 @@ def main(args):
     start_query = args.start_query
     num_queries = args.num_queries
 
-    # --- Extension 6.1: resolve threshold if requested ---
+    # --- Extension 6.1: recupera la threshold se richiesto ---
     use_threshold = args.threshold_type is not None
     if use_threshold:
         if args.vpr_method is None:
-            raise ValueError("--vpr-method must be specified when --threshold-type is set.")
-        threshold = get_threshold(args.threshold_type, matcher_name, args.vpr_method)
+            raise ValueError("--vpr-method deve essere specificato quando si usa --threshold-type.")
+        threshold = get_threshold(args.threshold_type, args.vpr_method, matcher_name)
 
     output_folder = Path(preds_folder + f"_{matcher_name}") if args.out_dir is None else Path(args.out_dir)
     output_folder.mkdir(exist_ok=True)
