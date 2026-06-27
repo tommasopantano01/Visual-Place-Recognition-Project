@@ -85,19 +85,21 @@ def find_inlier_threshold(train_x, train_y, best_min_k, best_tau, initial_window
 # ============================================================
 
 def save_to_json(threshold_type, vpr_method, matcher, n_star, json_path):
-    """Aggiunge/sovrascrive la chiave nel JSON condiviso con match_queries_preds.py."""
     json_path = Path(json_path)
     data = {}
     if json_path.exists():
         with open(json_path) as f:
-            data = json.load(f)
+            content = f.read().strip()
+            if content:
+                data = json.loads(content)
 
     data.setdefault(threshold_type, {}).setdefault(vpr_method, {})[matcher] = n_star
 
-    with open(json_path, "w") as f:
+    # Scrittura atomica: scrive su file temporaneo e poi rinomina
+    tmp_path = json_path.with_suffix(".tmp")
+    with open(tmp_path, "w") as f:
         json.dump(data, f, indent=2)
-    print(f"Salvato in {json_path}")
-
+    tmp_path.replace(json_path)
 
 # ============================================================
 # ARGOMENTI
