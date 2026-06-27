@@ -17,7 +17,7 @@ from matching.utils import get_default_device
 # Extension 6.1 — Tabella delle threshold
 #
 # Chiave:  (tipo di threshold, metodo_vpr, nome_matcher)
-# Valore:  valore dato dal metodo
+# Valore:  valore numerico threshdol dato dal metodo
 #
 # 4 tipi di threshold × 4 combinazioni (matcher, metodo_vpr) = 16 valori.
 # TODO: sostituire None con i valori reali una volta stimati sui dataset.
