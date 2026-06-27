@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import argparse
 import torch
 from glob import glob
@@ -17,34 +18,66 @@ from matching.utils import get_default_device
 # Extension 6.1 — Tabella delle threshold
 #
 # Chiave:  (tipo_threshold, metodo_vpr, matcher)
-# Valore:  valore numerico della threshold dato dal metodo
+# Valore:  num_inliers del top-1 sopra il quale il re-ranking viene saltato
 #
-# TODO: sostituire None con i valori reali una volta stimati sui dataset.
+# Valori default stimati dal team su SVOX (train) + SF-XS (val).
+# Se l'utente ha eseguito gli script in extension_6_1/, i valori calcolati
+# su dataset propri vengono caricati automaticamente da thresholds_computed.json
+# e sovrascrivono i default qui sotto.
+#
+# 4 tipi di threshold × 4 combinazioni (metodo_vpr, matcher) = 16 valori.
 # ---------------------------------------------------------------------------
-THRESHOLDS = {
+THRESHOLDS_DEFAULT = {
     # metodo1:
-    ("metodo1",  "megaloc",   "superpoint-lg"):  None,
-    ("metodo1",  "megaloc",   "loftr"):           None,
-    ("metodo1",  "cosplace",  "superpoint-lg"):  None,
-    ("metodo1",  "cosplace",  "loftr"):           None,
+    ("metodo1", "megaloc",  "superpoint-lg"):  None,  # TODO
+    ("metodo1", "megaloc",  "loftr"):           None,  # TODO
+    ("metodo1", "cosplace", "superpoint-lg"):  None,  # TODO
+    ("metodo1", "cosplace", "loftr"):           None,  # TODO
     # metodo2:
-    ("metodo2",  "megaloc",   "superpoint-lg"):  None,
-    ("metodo2",  "megaloc",   "loftr"):           None,
-    ("metodo2",  "cosplace",  "superpoint-lg"):  None,
-    ("metodo2",  "cosplace",  "loftr"):           None,
+    ("metodo2", "megaloc",  "superpoint-lg"):  None,  # TODO
+    ("metodo2", "megaloc",  "loftr"):           None,  # TODO
+    ("metodo2", "cosplace", "superpoint-lg"):  None,  # TODO
+    ("metodo2", "cosplace", "loftr"):           None,  # TODO
     # metodo3:
-    ("metodo3",  "megaloc",   "superpoint-lg"):  None,
-    ("metodo3",  "megaloc",   "loftr"):           None,
-    ("metodo3",  "cosplace",  "superpoint-lg"):  None,
-    ("metodo3",  "cosplace",  "loftr"):           None,
+    ("metodo3", "megaloc",  "superpoint-lg"):  None,  # TODO
+    ("metodo3", "megaloc",  "loftr"):           None,  # TODO
+    ("metodo3", "cosplace", "superpoint-lg"):  None,  # TODO
+    ("metodo3", "cosplace", "loftr"):           None,  # TODO
     # metodo4:
-    ("metodo4",  "megaloc",   "superpoint-lg"):  None,
-    ("metodo4",  "megaloc",   "loftr"):           None,
-    ("metodo4",  "cosplace",  "superpoint-lg"):  None,
-    ("metodo4",  "cosplace",  "loftr"):           None,
+    ("metodo4", "megaloc",  "superpoint-lg"):  None,  # TODO
+    ("metodo4", "megaloc",  "loftr"):           None,  # TODO
+    ("metodo4", "cosplace", "superpoint-lg"):  None,  # TODO
+    ("metodo4", "cosplace", "loftr"):           None,  # TODO
 }
 
 THRESHOLD_TYPES = ["metodo1", "metodo2", "metodo3", "metodo4"]
+
+# Percorso del JSON prodotto dagli script in extension_6_1/
+_COMPUTED_JSON = Path(__file__).parent / "extension_6_1" / "thresholds_computed.json"
+
+
+def load_thresholds():
+    """
+    Parte dai default hardcoded e sovrascrive con i valori in thresholds_computed.json
+    se il file esiste (prodotto dagli script nonparametric/logistic in extension_6_1/).
+    """
+    thresholds = dict(THRESHOLDS_DEFAULT)
+
+    if _COMPUTED_JSON.exists():
+        with open(_COMPUTED_JSON) as f:
+            computed = json.load(f)
+        # struttura JSON: { tipo: { vpr_method: { matcher: valore } } }
+        for tipo, vpr_dict in computed.items():
+            for vpr, matcher_dict in vpr_dict.items():
+                for matcher, value in matcher_dict.items():
+                    thresholds[(tipo, vpr, matcher)] = value
+        print(f"[Extension 6.1] Threshold custom caricate da {_COMPUTED_JSON}")
+
+    return thresholds
+
+
+# Carica al momento dell'import: usa default o JSON se disponibile
+THRESHOLDS = load_thresholds()
 
 
 def parse_arguments():
@@ -89,10 +122,14 @@ def get_threshold(threshold_type, vpr_method, matcher_name):
     """Restituisce la threshold per la combinazione (tipo_threshold, metodo_vpr, matcher)."""
     key = (threshold_type, vpr_method, matcher_name)
     if key not in THRESHOLDS:
-        raise ValueError(f"Nessuna threshold definita per la chiave {key}. Aggiungila a THRESHOLDS.")
+        raise ValueError(f"Nessuna threshold definita per la chiave {key}. Aggiungila a THRESHOLDS_DEFAULT.")
     value = THRESHOLDS[key]
     if value is None:
-        raise ValueError(f"La threshold per {key} non è ancora stata inserita (None). Aggiorna THRESHOLDS.")
+        raise ValueError(
+            f"La threshold per {key} non è ancora stata inserita.\n"
+            f"Esegui extension_6_1/nonparametric_threshold_estimator.py o "
+            f"extension_6_1/logistic_threshold_estimator.py per calcolarla."
+        )
     return value
 
 
