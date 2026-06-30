@@ -34,41 +34,49 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(_REPO_ROOT))
 sys.path.append(str(_REPO_ROOT / "image-matching-models"))
 
-# Import "pigri" (A2): torch/util/matching servono SOLO all'image matching
-# (metodi del prof e decisori SU). Training/validation lavorano su CSV e non ne
-# hanno bisogno, quindi un ambiente senza torch puo' comunque importare _common
-# e usare le funzioni di calibrazione. Se una funzione di image matching viene
-# chiamata senza queste dipendenze, l'errore arriva al primo uso, chiaro.
+# Import "pigri" (A2), separati per granularita':
+#   - torch, tqdm: servono ai decisori SU e all'I/O .torch. Provati per primi.
+#   - util, matching: servono SOLO all'image matching (metodi del prof). Se
+#     mancano, solo le funzioni di matching diventano inutilizzabili; training,
+#     validation e decisione SU (che usano torch ma non il matcher) funzionano.
 try:
     import torch
-    from tqdm import tqdm
-    from util import read_file_preds
-    from matching import get_matcher
-    _IM_DEPS_OK = True
-except ImportError as _e:
-    _IM_DEPS_IMPORT_ERROR = _e
-    _IM_DEPS_OK = False
-
-    def _missing_im_deps(*_a, **_k):
-        raise ImportError(
-            "Questa funzione richiede torch + image-matching-models "
-            f"(util, matching), non disponibili: {_IM_DEPS_IMPORT_ERROR}. "
-            "Le funzioni di training/validation SU non ne hanno bisogno."
-        )
-
-    # segnaposto: usati solo dalle funzioni di image matching
-    get_matcher = _missing_im_deps
-    read_file_preds = _missing_im_deps
-
-    def tqdm(x, *a, **k):   # no-op iterabile, cosi' i loop non rompono all'import
-        return x
+    _TORCH_OK = True
+except ImportError:
+    _TORCH_OK = False
 
     class _TorchStub:
         def __getattr__(self, name):
             raise ImportError(
-                "torch non disponibile: serve solo per image matching / I/O .torch."
+                "torch non disponibile: serve per I/O .torch e image matching."
             )
     torch = _TorchStub()
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    def tqdm(x, *a, **k):   # no-op iterabile se tqdm manca
+        return x
+
+try:
+    from util import read_file_preds
+    from matching import get_matcher
+    _MATCHER_OK = True
+except ImportError as _e:
+    _MATCHER_IMPORT_ERROR = _e
+    _MATCHER_OK = False
+
+    def _missing_matcher(*_a, **_k):
+        raise ImportError(
+            "Questa funzione richiede image-matching-models (util, matching), "
+            f"non disponibili: {_MATCHER_IMPORT_ERROR}. Training/validation/decisione "
+            "SU non ne hanno bisogno (il matching vero passa per match_queries_preds.py)."
+        )
+    get_matcher = _missing_matcher
+    read_file_preds = _missing_matcher
+
+# compatibilita': alcune funzioni potrebbero controllare _IM_DEPS_OK
+_IM_DEPS_OK = _TORCH_OK and _MATCHER_OK
 
 
 # ============================================================
