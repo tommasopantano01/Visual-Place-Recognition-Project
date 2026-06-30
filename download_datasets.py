@@ -17,9 +17,3 @@ for dataset_name, url in URLS.items():
     gdown.download(url, zip_filepath, fuzzy=True)
     shutil.unpack_archive(zip_filepath, extract_dir="data")
     os.remove(zip_filepath)
-
-if CSV_URLS:
-    os.makedirs("extension_6_1/data", exist_ok=True)
-    for csv_name, url in CSV_URLS.items():
-        print(f"Downloading {csv_name}")
-        gdown.download(url, f"extension_6_1/data/{csv_name}.csv", fuzzy=True)
