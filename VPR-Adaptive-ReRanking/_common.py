@@ -420,8 +420,10 @@ def load_query_level(csv_dir_or_file, k=10, alpha=0.5):
                 "query_id_full":       f"{stem}::{qid}",
                 "source_file":         stem,
                 "SU":                  float(su),
-                # convenzione: pochi inlier -> feature alta -> query incerta
+                # convenzione SU: pochi inlier -> feature alta -> query incerta
                 "inliers":             -float(top1["num_inliers"]),
+                # grezzo (non negato): feature per i metodi logistici su num_inliers
+                "num_inliers_top1":    float(top1["num_inliers"]),
                 "correct_0":           correct_0,
                 "correct_full_rerank": correct_full_rerank,
                 "hard":  int(correct_0 == 0),
