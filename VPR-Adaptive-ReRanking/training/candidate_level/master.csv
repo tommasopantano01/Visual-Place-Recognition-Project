@@ -1,0 +1,2 @@
+query_id,candidate_path,l2_distance,retrieval_rank,num_inliers,rerank_rank_topK,is_positive,K
+id della query,path immagine del candidato,distanza L2 retrieval query-candidato,rango del candidato nel retrieval (0=top-1),inlier RANSAC query-candidato (image matching),rango dopo rerank per inlier sui top-K,1 se candidato entro soglia geografica altrimenti 0,numero di candidati considerati nel retrieval
