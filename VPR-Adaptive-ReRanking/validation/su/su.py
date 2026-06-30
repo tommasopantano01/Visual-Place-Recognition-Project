@@ -19,7 +19,7 @@ from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 sys.path.append(str(_HERE.parent))            # validation/  (per _su_validation)
-sys.path.append(str(_HERE.parent.parent))     # VPR-Adaptive-ReRanking/  (per _su_common)
+sys.path.append(str(_HERE.parent.parent))     # VPR-Adaptive-ReRanking/  (per _common)
 from _su_validation import validate_and_save
 
 # model.json prodotto dal training, posizione di default
