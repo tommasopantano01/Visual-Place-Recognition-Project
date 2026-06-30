@@ -32,7 +32,7 @@ from _common import (
 SU_K_DEFAULT     = 10
 SU_ALPHA_DEFAULT = 0.5
 
-# griglie FISSE identiche alla Cella 3
+# griglie FISSE
 ALPHAS_GRID = np.round(np.arange(0.0, 5.01, 0.1), 2)
 TAUS_GRID   = np.round(np.arange(-1.0, 1.01, 0.01), 2)
 
