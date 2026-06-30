@@ -1,17 +1,10 @@
 URLS = {
     "tokyo_xs": "https://drive.google.com/file/d/15QB3VNKj93027UAQWv7pzFQO1JDCdZj2/view?usp=share_link",
-    "sf_xs": "https://drive.google.com/file/d/1tQqEyt3go3vMh4fj_LZrRcahoTbzzH-y/view?usp=share_link",
-    "gsv_xs": "https://drive.google.com/file/d/1q7usSe9_5xV5zTfN-1In4DlmF5ReyU_A/view?usp=share_link",
-    "svox": "https://drive.google.com/file/d/16iuk8voW65GaywNUQlWAbDt6HZzAJ_t9/view?usp=drive_link",
+    #"sf_xs": "https://drive.google.com/file/d/1tQqEyt3go3vMh4fj_LZrRcahoTbzzH-y/view?usp=share_link",
+    #"gsv_xs": "https://drive.google.com/file/d/1q7usSe9_5xV5zTfN-1In4DlmF5ReyU_A/view?usp=share_link",
+    #"svox": "https://drive.google.com/file/d/16iuk8voW65GaywNUQlWAbDt6HZzAJ_t9/view?usp=drive_link",
 }
 
-# CSV per ricalcolare le threshold dell'Extension 6.1 con i propri dati (opzionale)
-CSV_URLS = {
-    # "train_megaloc_sp-lg":  "https://drive.google.com/...",  # TODO
-    # "train_cosplace_sp-lg": "https://drive.google.com/...",  # TODO
-    # "val_megaloc_sp-lg":    "https://drive.google.com/...",  # TODO
-    # "val_cosplace_sp-lg":   "https://drive.google.com/...",  # TODO
-}
 
 import os
 import gdown
