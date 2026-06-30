@@ -30,6 +30,8 @@ def parse_args():
     parser.add_argument("--im-size",    type=int, default=512)
     parser.add_argument("--num-preds",  type=int, default=20)
     parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--z_data.torch", required=True)
     return parser.parse_args()
 
 
