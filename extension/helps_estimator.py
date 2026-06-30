@@ -1,33 +1,47 @@
 """
 helps_estimator.py — Stima la threshold per il re-ranking adattivo.
 
-Implementa le due strategie descritte nel report in "Local probability and
-logistic policies", entrambe basate SOLO su num_inliers_top1:
+Implementa le due tecniche di stima descritte nel report, entrambe basate
+SOLO su num_inliers_top1:
 
   local    → stima non parametrica di P(helps | I_1(q))
              finestra adattiva centrata su I_1(q), espansa finche' non
              contiene almeno K_min campioni di train.
 
-  logistic → utility-based logistic regressor policy:
-             due regressori p_help(I_1) e p_hurt(I_1), combinati come
-             S(q) = p_help(q) - lambda * p_hurt(q), rerank se S(q) > tau.
-             lambda e tau sono scelti su validation via grid search.
+  logistic → regressione logistica parametrica. Tre varianti (--criterion),
+             confermate da Luca come metodi distinti:
+               hard           → P_hard(I_1) > tau          (un regressore)
+               help           → P_help(I_1) > tau          (un regressore)
+               cost_sensitive → P_help(I_1) - lambda*P_hurt(I_1) > tau
+                                 (due regressori, utility-based, default)
 
-Entrambe le policy sono funzione del solo I_1(q): l'output e' sempre una
-soglia intera N* su num_inliers, salvata in extension/thresholds_computed.json
-({"type": "threshold", "value": N*}) e usata automaticamente da
-match_queries_preds.py — nessuna feature aggiuntiva, nessuna modifica
-necessaria all'inference.
+Tutte e quattro le combinazioni sono funzione del solo I_1(q): l'output e'
+sempre una soglia intera N* su num_inliers, salvata in
+extension/thresholds_computed.json ({"type": "threshold", "value": N*}) e
+usata automaticamente da match_queries_preds.py — nessuna feature
+aggiuntiva, nessuna modifica necessaria all'inference.
 
 Uso:
-    # metodo local — Luca
+    # metodo local
     python extension/helps_estimator.py \\
         --train-csv train.csv --val-csv val.csv \\
         --vpr-method megaloc --matcher superpoint-lg
 
-    # metodo logistic (cost-sensitive) — utility-based logistic regressor
+    # logistic, criterio P_hard
     python extension/helps_estimator.py \\
-        --method logistic \\
+        --method logistic --criterion hard \\
+        --train-csv train.csv --val-csv val.csv \\
+        --vpr-method megaloc --matcher superpoint-lg
+
+    # logistic, criterio P_help
+    python extension/helps_estimator.py \\
+        --method logistic --criterion help \\
+        --train-csv train.csv --val-csv val.csv \\
+        --vpr-method megaloc --matcher superpoint-lg
+
+    # logistic, cost-sensitive P_help - lambda*P_hurt (default se --method logistic)
+    python extension/helps_estimator.py \\
+        --method logistic --criterion cost_sensitive \\
         --train-csv train.csv --val-csv val.csv \\
         --vpr-method megaloc --matcher superpoint-lg
 
@@ -42,14 +56,22 @@ import json
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
+from scipy.special import logit
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from csv_utils import load_query_level
 
 _JSON_PATH = Path(__file__).parent / "thresholds_computed.json"
-# local (Luca) → metodo4 | logistic (utility-based, p_help - lambda*p_hurt) → metodo5
-_THRESHOLD_TYPE_BY_METHOD = {"local": "metodo4", "logistic": "metodo5"}
+
+# local -> metodo4
+# logistic, in base al criterio -> metodo5/6/7
+# (separati per evitare che le tre varianti logistic si sovrascrivano a vicenda)
+_THRESHOLD_TYPE_BY_CRITERION = {"hard": "metodo5", "help": "metodo6", "cost_sensitive": "metodo7"}
+
+
+def get_threshold_type(method, criterion):
+    return "metodo4" if method == "local" else _THRESHOLD_TYPE_BY_CRITERION[criterion]
 
 
 # ============================================================
@@ -66,6 +88,15 @@ def compute_metrics(rerank_mask, correct_0, correct_20, K=20):
         "avg_matches":  avg_matches,
         "savings_%":    100 * (1 - avg_matches / K),
     }
+
+
+def fit_logistic(X, y):
+    clf = Pipeline([
+        ("scaler", StandardScaler()),
+        ("logreg", LogisticRegression(class_weight="balanced", random_state=42, max_iter=1000)),
+    ])
+    clf.fit(X, y)
+    return clf
 
 
 # ============================================================
@@ -147,7 +178,64 @@ def run_local(train_df, val_df, args):
 
 
 # ============================================================
-# METODO LOGISTIC — utility-based logistic regressor policy
+# METODO LOGISTIC — criteri hard / help (un solo regressore)
+#
+# hard: y = 1{c_0(q)=0}                 (il retrieval ha sbagliato)
+# help: y = 1{c_0(q)=0 AND c_20(q)=1}   (il rerank ha corretto)
+#
+# Entrambi sono una sigmoide singola su I_1: invertibile analiticamente.
+# ============================================================
+
+def find_N_star_single_sigmoid(clf, best_tau):
+    """
+    Inversione analitica: risolve P(y=1|N*) = best_tau invertendo la sigmoide.
+        logit(best_tau) = w*(N*-mean)/std + b  →  N* = (logit(best_tau)-b)/w * std + mean
+    """
+    logreg = clf.named_steps["logreg"]
+    scaler = clf.named_steps["scaler"]
+    w, b      = logreg.coef_[0][0], logreg.intercept_[0]
+    mean, std = scaler.mean_[0], scaler.scale_[0]
+    if w > 0:
+        print("  ATTENZIONE: coefficiente positivo — la probabilita' cresce con num_inliers. Controlla i dati.")
+    return int(round((logit(best_tau) - b) / w * std + mean))
+
+
+def run_single_criterion(train_df, val_df, args, y_col):
+    X_train    = train_df[["num_inliers_top1"]].values
+    y_train    = train_df[y_col].values
+    X_val      = val_df[["num_inliers_top1"]].values
+    correct_0  = val_df["correct_0"].values
+    correct_20 = val_df["correct_20"].values
+
+    clf   = fit_logistic(X_train, y_train)
+    p_val = clf.predict_proba(X_val)[:, 1]
+
+    tau_values = np.round(np.arange(0.0, 1.0 + args.tau_step, args.tau_step), 4)
+
+    # Grid search su tau: max R@1 adattivo
+    best_r1, best_tau_r1 = -1.0, None
+    for tau in tau_values:
+        m = compute_metrics(p_val > tau, correct_0, correct_20)
+        if m["adaptive_R@1"] > best_r1:
+            best_r1, best_tau_r1 = m["adaptive_R@1"], tau
+
+    # Tra i quasi-pari, preferisci piu' saving
+    target_r1, best_tau_eff, best_avg = best_r1 - args.max_drop_pp / 100.0, None, float("inf")
+    for tau in tau_values:
+        m = compute_metrics(p_val > tau, correct_0, correct_20)
+        if m["adaptive_R@1"] >= target_r1 and m["avg_matches"] < best_avg:
+            best_avg, best_tau_eff = m["avg_matches"], tau
+
+    BEST_TAU = best_tau_eff if best_tau_eff is not None else best_tau_r1
+    m_final  = compute_metrics(p_val > BEST_TAU, correct_0, correct_20)
+    N_star   = find_N_star_single_sigmoid(clf, BEST_TAU)
+
+    print(f"  tau* = {BEST_TAU}")
+    return {"type": "threshold", "value": N_star}, m_final
+
+
+# ============================================================
+# METODO LOGISTIC — criterio cost_sensitive (utility-based)
 #
 # y_help(q) = 1{c_0(q)=0 AND c_20(q)=1}   (il rerank ha corretto)
 # y_hurt(q) = 1{c_0(q)=1 AND c_20(q)=0}   (il rerank ha rotto)
@@ -156,15 +244,6 @@ def run_local(train_df, val_df, args):
 # S(q) = p_help(q) - lambda * p_hurt(q)
 # rerank se S(q) > tau
 # ============================================================
-
-def fit_logistic(X, y):
-    clf = Pipeline([
-        ("scaler", StandardScaler()),
-        ("logreg", LogisticRegression(class_weight="balanced", random_state=42, max_iter=1000)),
-    ])
-    clf.fit(X, y)
-    return clf
-
 
 def find_N_star_cost_sensitive(train_x, clf_help, clf_hurt, best_lambda, best_tau):
     """
@@ -180,7 +259,7 @@ def find_N_star_cost_sensitive(train_x, clf_help, clf_hurt, best_lambda, best_ta
     return int(above.max()) if len(above) > 0 else int(train_x.min())
 
 
-def run_logistic(train_df, val_df, args):
+def run_cost_sensitive(train_df, val_df, args):
     X_train = train_df[["num_inliers_top1"]].values
     y_help  = train_df["helps_20"].values
     y_hurt  = train_df["hurts_20"].values
@@ -221,6 +300,17 @@ def run_logistic(train_df, val_df, args):
     return {"type": "threshold", "value": N_star}, best_record["metrics"]
 
 
+def run_logistic(train_df, val_df, args):
+    if args.criterion == "hard":
+        train_df = train_df.copy()
+        train_df["hard"] = 1 - train_df["correct_0"]
+        return run_single_criterion(train_df, val_df, args, y_col="hard")
+    elif args.criterion == "help":
+        return run_single_criterion(train_df, val_df, args, y_col="helps_20")
+    else:
+        return run_cost_sensitive(train_df, val_df, args)
+
+
 # ============================================================
 # ARGOMENTI
 # ============================================================
@@ -235,12 +325,15 @@ def parse_args():
                         help="matcher usato (es. superpoint-lg, loftr)")
     parser.add_argument("--method",         default="local",
                         choices=["local", "logistic"],
-                        help="local = non parametrico | logistic = utility-based (p_help - lambda*p_hurt)")
+                        help="local = non parametrico | logistic = regressione parametrica")
+    parser.add_argument("--criterion",      default="cost_sensitive",
+                        choices=["hard", "help", "cost_sensitive"],
+                        help="criterio per --method logistic (ignorato per --method local)")
     # Iperparametri metodo local
     parser.add_argument("--min-k-values",   nargs="+", type=int,
                         default=[10, 20, 30, 50, 75, 100])
     parser.add_argument("--initial-window", type=int, default=1)
-    # Iperparametri metodo logistic
+    # Iperparametri criterio cost_sensitive
     parser.add_argument("--lambda-max",     type=float, default=3.0)
     parser.add_argument("--lambda-step",    type=float, default=0.1)
     parser.add_argument("--tau-min",        type=float, default=-1.0)
@@ -265,12 +358,14 @@ def main(args):
 
     if args.method == "local":
         output_info, m = run_local(train_df, val_df, args)
+        label = "local"
     else:
         output_info, m = run_logistic(train_df, val_df, args)
+        label = f"logistic/{args.criterion}"
 
-    threshold_type = _THRESHOLD_TYPE_BY_METHOD[args.method]
+    threshold_type = get_threshold_type(args.method, args.criterion)
     print("\n" + "=" * 60)
-    print(f"RISULTATO — {threshold_type} [{args.method}] | {args.vpr_method} | {args.matcher}")
+    print(f"RISULTATO — {threshold_type} [{label}] | {args.vpr_method} | {args.matcher}")
     print(f"  Adaptive R@1 = {m['adaptive_R@1']:.4f}")
     print(f"  Savings      = {m['savings_%']:.1f}%")
     print(f"  → N* (num_inliers threshold) = {output_info['value']}")
