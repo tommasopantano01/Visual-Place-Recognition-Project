@@ -15,8 +15,22 @@ from matching import get_matcher, available_models
 from matching.utils import get_default_device
 
 sys.path.append(str(Path(__file__).parent.joinpath("extension")))
-from csv_utils import load_query_level
+from csv_utils import compute_su_from_retrieval
 
+
+# ---------------------------------------------------------------------------
+# Extension 6.1 — Tabella delle threshold
+#
+# Chiave:  (tipo_threshold, metodo_vpr, matcher)
+# Valore:  num_inliers del top-1 sopra il quale il re-ranking viene saltato
+#
+# Valori default stimati dal team su SVOX (train) + SF-XS (val).
+# Se l'utente ha eseguito gli script in extension/, i valori calcolati
+# su dataset propri vengono caricati automaticamente da thresholds_computed.json
+# e sovrascrivono i default qui sotto.
+#
+# 4 tipi di threshold × 4 combinazioni (metodo_vpr, matcher) = 16 valori.
+# ---------------------------------------------------------------------------
 THRESHOLDS_DEFAULT = {
     # metodo1:
     ("metodo1", "megaloc",  "superpoint-lg"):  None,  # TODO
@@ -117,7 +131,9 @@ def parse_arguments():
         "--su-csv",
         type=str,
         default=None,
-        help="(Extension 6.1) CSV con colonne query_id e SU, richiesto per threshold logistiche con SU",
+        help="(Extension 6.1) CSV di solo retrieval (query_id, l2_distance, retrieval_rank), "
+             "richiesto per threshold logistiche con SU. NON deve contenere num_inliers/is_positive: "
+             "a test-time il full re-ranking non e' ancora stato calcolato.",
     )
 
     return parser.parse_args()
@@ -211,12 +227,13 @@ def main(args):
                 if args.su_csv is None:
                     raise ValueError(
                         "La threshold selezionata usa il segnale SU. "
-                        "Specifica --su-csv con il CSV candidate-level del test set "
-                        "(query_id, candidate_path, l2_distance, retrieval_rank, ...)."
+                        "Specifica --su-csv con il CSV di solo retrieval del test set "
+                        "(query_id, l2_distance, retrieval_rank — niente num_inliers/is_positive, "
+                        "a test-time il full re-ranking non e' ancora stato calcolato)."
                     )
-                # SU non è una colonna pre-calcolata: si ricava dalla l2_distance
-                # dei top-k candidati con la stessa formula usata in training.
-                su_query_df = load_query_level(args.su_csv)
+                # SU si ricava solo dalla l2_distance del retrieval: a test-time
+                # non abbiamo ancora ne' ground truth ne' risultati di IM sui 20.
+                su_query_df = compute_su_from_retrieval(args.su_csv)
                 su_dict     = dict(zip(su_query_df["query_id"], su_query_df["SU"]))
                 print(f"[Extension 6.1] SU calcolato da {args.su_csv} ({len(su_dict)} query)")
 
