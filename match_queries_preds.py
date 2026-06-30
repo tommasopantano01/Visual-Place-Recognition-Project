@@ -14,6 +14,9 @@ sys.path.append(str(Path(__file__).parent.joinpath("image-matching-models")))
 from matching import get_matcher, available_models
 from matching.utils import get_default_device
 
+sys.path.append(str(Path(__file__).parent.joinpath("extension")))
+from csv_utils import load_query_level
+
 
 # ---------------------------------------------------------------------------
 # Extension 6.1 — Tabella delle threshold
@@ -49,9 +52,14 @@ THRESHOLDS_DEFAULT = {
     ("metodo4", "megaloc",  "loftr"):           None,  # TODO
     ("metodo4", "cosplace", "superpoint-lg"):  None,  # TODO
     ("metodo4", "cosplace", "loftr"):           None,  # TODO
+    # metodo5:
+    ("metodo5", "megaloc",  "superpoint-lg"):  None,  # TODO
+    ("metodo5", "megaloc",  "loftr"):           None,  # TODO
+    ("metodo5", "cosplace", "superpoint-lg"):  None,  # TODO
+    ("metodo5", "cosplace", "loftr"):           None,  # TODO
 }
 
-THRESHOLD_TYPES = ["metodo1", "metodo2", "metodo3", "metodo4"]
+THRESHOLD_TYPES = ["metodo1", "metodo2", "metodo3", "metodo4", "metodo5"]
 
 # Percorso del JSON prodotto dagli script in extension/
 _COMPUTED_JSON = Path(__file__).parent / "extension" / "thresholds_computed.json"
@@ -217,11 +225,14 @@ def main(args):
                 if args.su_csv is None:
                     raise ValueError(
                         "La threshold selezionata usa il segnale SU. "
-                        "Specifica --su-csv con il CSV contenente la colonna SU per il test set."
+                        "Specifica --su-csv con il CSV candidate-level del test set "
+                        "(query_id, candidate_path, l2_distance, retrieval_rank, ...)."
                     )
-                su_df   = pd.read_csv(args.su_csv)
-                su_dict = dict(zip(su_df["query_id"].astype(str), su_df["SU"].astype(float)))
-                print(f"[Extension 6.1] SU caricato da {args.su_csv} ({len(su_dict)} query)")
+                # SU non è una colonna pre-calcolata: si ricava dalla l2_distance
+                # dei top-k candidati con la stessa formula usata in training.
+                su_query_df = load_query_level(args.su_csv)
+                su_dict     = dict(zip(su_query_df["query_id"], su_query_df["SU"]))
+                print(f"[Extension 6.1] SU calcolato da {args.su_csv} ({len(su_dict)} query)")
 
     output_folder = Path(preds_folder + f"_{matcher_name}") if args.out_dir is None else Path(args.out_dir)
     output_folder.mkdir(exist_ok=True)
@@ -282,6 +293,5 @@ def main(args):
 
 
 if __name__ == "__main__":
-    import pandas as pd
     args = parse_arguments()
     main(args)
