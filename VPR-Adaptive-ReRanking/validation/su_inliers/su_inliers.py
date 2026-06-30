@@ -14,7 +14,7 @@ from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 sys.path.append(str(_HERE.parent))            # validation/
-sys.path.append(str(_HERE.parent.parent))     # VPR-Adaptive-ReRanking/
+sys.path.append(str(_HERE.parent.parent))     # VPR-Adaptive-ReRanking/  (per _common)
 from _su_validation import validate_and_save
 
 _DEFAULT_MODEL = _HERE.parent.parent / "training" / "su_inliers" / "model.json"
