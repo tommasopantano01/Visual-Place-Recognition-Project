@@ -29,15 +29,46 @@ from pathlib import Path
 from copy import deepcopy
 
 import numpy as np
-import torch
-from tqdm import tqdm
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(_REPO_ROOT))
 sys.path.append(str(_REPO_ROOT / "image-matching-models"))
 
-from util import read_file_preds
-from matching import get_matcher
+# Import "pigri" (A2): torch/util/matching servono SOLO all'image matching
+# (metodi del prof e decisori SU). Training/validation lavorano su CSV e non ne
+# hanno bisogno, quindi un ambiente senza torch puo' comunque importare _common
+# e usare le funzioni di calibrazione. Se una funzione di image matching viene
+# chiamata senza queste dipendenze, l'errore arriva al primo uso, chiaro.
+try:
+    import torch
+    from tqdm import tqdm
+    from util import read_file_preds
+    from matching import get_matcher
+    _IM_DEPS_OK = True
+except ImportError as _e:
+    _IM_DEPS_IMPORT_ERROR = _e
+    _IM_DEPS_OK = False
+
+    def _missing_im_deps(*_a, **_k):
+        raise ImportError(
+            "Questa funzione richiede torch + image-matching-models "
+            f"(util, matching), non disponibili: {_IM_DEPS_IMPORT_ERROR}. "
+            "Le funzioni di training/validation SU non ne hanno bisogno."
+        )
+
+    # segnaposto: usati solo dalle funzioni di image matching
+    get_matcher = _missing_im_deps
+    read_file_preds = _missing_im_deps
+
+    def tqdm(x, *a, **k):   # no-op iterabile, cosi' i loop non rompono all'import
+        return x
+
+    class _TorchStub:
+        def __getattr__(self, name):
+            raise ImportError(
+                "torch non disponibile: serve solo per image matching / I/O .torch."
+            )
+    torch = _TorchStub()
 
 
 # ============================================================
@@ -310,3 +341,146 @@ def print_summary(rerank_ids, skip_ids):
     print(f"\nQuery totali: {total}")
     print(f"  Rerank (top-20): {len(rerank_ids):5d}  ({pct:.1f}%)")
     print(f"  Skip (solo top-1): {len(skip_ids):5d}  ({100 - pct:.1f}%)")
+
+
+# ████████████████████████████████████████████████████████████████████
+# AGGIUNTE SU — TRAINING + VALIDATION dei metodi su/ e su_inliers/
+#
+# Tutto cio' che segue serve SOLO agli script in training/ e validation/
+# per i metodi basati su SU (riattivati). Non e' usato dai metodi del prof.
+# Richiede scikit-learn e pandas (gia' dipendenze del progetto di calibrazione).
+# Le funzioni qui sotto riutilizzano l2_to_su() definita sopra.
+# ████████████████████████████████████████████████████████████████████
+
+import pandas as pd
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+
+# colonne richieste nel CSV candidate-level (vedi training/candidate_level/master.csv)
+SU_REQUIRED_COLS = ["query_id", "l2_distance", "retrieval_rank",
+                    "num_inliers", "is_positive", "rerank_rank_topK"]
+
+# i tre target/criteri del notebook di calibrazione
+SU_TARGETS  = ("hard", "help", "hurts")
+SU_CRITERIA = ("P(hard)", "P(help)", "P(help)-aP(hurts)")
+
+
+# --- LOADER: CSV candidate-level -> DataFrame a livello query + label -------
+
+def load_query_level(csv_dir_or_file, k=10, alpha=0.5):
+    """Legge uno o piu' CSV candidate-level (dir o file singolo), collassa al
+    livello query e calcola SU (via l2_to_su), inliers (negato) e le label
+    hard/helps/hurts. Usato da training (per X,y) e validation (per X + correct_*).
+
+    Colonne ritornate: query_id_full, source_file, SU, inliers,
+      correct_0, correct_full_rerank, hard, helps, hurts
+    """
+    if os.path.isdir(csv_dir_or_file):
+        files = sorted(glob(os.path.join(csv_dir_or_file, "*.csv")))
+    else:
+        files = [csv_dir_or_file]
+    if not files:
+        raise FileNotFoundError(f"Nessun CSV trovato in {csv_dir_or_file}")
+
+    rows = []
+    for fp in files:
+        stem = os.path.splitext(os.path.basename(fp))[0]
+        df = pd.read_csv(fp)
+        missing = [c for c in SU_REQUIRED_COLS if c not in df.columns]
+        if missing:
+            raise ValueError(f"{fp}: colonne mancanti {missing}")
+
+        for qid, g in df.groupby("query_id", sort=False):
+            g = g.sort_values("retrieval_rank")
+            if len(g) < k:
+                continue  # SU non calcolabile
+
+            l2 = g["l2_distance"].to_numpy(dtype=float)
+            su = l2_to_su(l2, k=k, alpha=alpha)   # riusa la funzione sopra
+
+            top1 = g.iloc[0]
+            rr_win = g.loc[g["rerank_rank_topK"] == 1]
+            if len(rr_win) == 0:
+                continue
+            rr_win = rr_win.iloc[0]
+
+            correct_0           = int(top1["is_positive"])
+            correct_full_rerank = int(rr_win["is_positive"])
+
+            rows.append({
+                "query_id_full":       f"{stem}::{qid}",
+                "source_file":         stem,
+                "SU":                  float(su),
+                # convenzione: pochi inlier -> feature alta -> query incerta
+                "inliers":             -float(top1["num_inliers"]),
+                "correct_0":           correct_0,
+                "correct_full_rerank": correct_full_rerank,
+                "hard":  int(correct_0 == 0),
+                "helps": int((correct_0 == 0) and (correct_full_rerank == 1)),
+                "hurts": int((correct_0 == 1) and (correct_full_rerank == 0)),
+            })
+
+    if not rows:
+        raise ValueError("Nessuna query valida estratta dai CSV (controlla k e le colonne).")
+    return pd.DataFrame(rows)
+
+
+# --- TRAINING di un singolo regressore (Cella 2) ---------------------------
+
+def fit_regressor(X, y):
+    clf = Pipeline([
+        ("scaler", StandardScaler()),
+        ("logreg", LogisticRegression(class_weight="balanced",
+                                      random_state=42, max_iter=1000)),
+    ])
+    clf.fit(X, y)
+    return clf
+
+
+def regressor_to_dict(clf, feat_cols):
+    sc = clf.named_steps["scaler"]
+    lr = clf.named_steps["logreg"]
+    return {
+        "feat_cols":    list(feat_cols),
+        "scaler_mean":  sc.mean_.tolist(),
+        "scaler_scale": sc.scale_.tolist(),
+        "coef":         lr.coef_.tolist(),
+        "intercept":    lr.intercept_.tolist(),
+        "classes":      lr.classes_.tolist(),
+    }
+
+
+# --- Ricostruzione + applicazione regressore per la grid-search (Cella 3) ---
+
+def regressor_from_dict(d):
+    sc = StandardScaler()
+    sc.mean_   = np.array(d["scaler_mean"])
+    sc.scale_  = np.array(d["scaler_scale"])
+    sc.var_    = sc.scale_ ** 2
+    sc.n_features_in_ = len(d["feat_cols"])
+    lr = LogisticRegression()
+    lr.coef_       = np.array(d["coef"])
+    lr.intercept_  = np.array(d["intercept"])
+    lr.classes_    = np.array(d["classes"])
+    return Pipeline([("scaler", sc), ("logreg", lr)])
+
+
+def predict_proba_pos(clf, X):
+    """P(classe positiva). Nome esplicito per non confondersi con
+    apply_sigmoid (che opera su dict per i metodi del prof)."""
+    return clf.predict_proba(X)[:, 1]
+
+
+def clean_scores(scores):
+    """NaN/inf -> valori finiti (mediana / max / min finiti). Per la grid-search."""
+    scores = np.asarray(scores, dtype=float)
+    finite = np.isfinite(scores)
+    if np.all(finite):
+        return scores
+    fv = np.nanmedian(scores[finite]) if np.any(finite) else 0.0
+    return np.nan_to_num(
+        scores, nan=fv,
+        posinf=np.max(scores[finite]) if np.any(finite) else fv,
+        neginf=np.min(scores[finite]) if np.any(finite) else fv,
+    )
