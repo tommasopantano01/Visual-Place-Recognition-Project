@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument("--num-preds",  type=int, default=20)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--model", required=True)
-    parser.add_argument("--z_data.torch", required=True)
+    parser.add_argument("--z_data-dir", required=True)
     return parser.parse_args()
 
 
