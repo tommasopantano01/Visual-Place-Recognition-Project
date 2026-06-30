@@ -2,7 +2,6 @@ import os
 import sys
 import json
 import argparse
-import numpy as np
 import torch
 from glob import glob
 from tqdm import tqdm
@@ -14,45 +13,48 @@ sys.path.append(str(Path(__file__).parent.joinpath("image-matching-models")))
 from matching import get_matcher, available_models
 from matching.utils import get_default_device
 
-sys.path.append(str(Path(__file__).parent.joinpath("extension")))
-from csv_utils import compute_su_from_retrieval
-
 
 # ---------------------------------------------------------------------------
 # Extension 6.1 — Tabella delle threshold
 #
 # Chiave:  (tipo_threshold, metodo_vpr, matcher)
-# Valore:  num_inliers del top-1 sopra il quale il re-ranking viene saltato
+# Valore:  num_inliers del top-1 sotto il quale il re-ranking viene eseguito
+#          su tutti i top-20 (altrimenti viene saltato)
+#
+# Ogni metodo descritto nel report (Youden T_B, utility-based T_95, local
+# P(helps), utility-based logistic p_help - lambda*p_hurt) e' funzione del
+# solo I_1(q) = num_inliers del top-1: tutti collassano a una singola soglia
+# intera, stimata sul validation set.
 #
 # Valori default stimati dal team su SVOX (train) + SF-XS (val).
 # Se l'utente ha eseguito gli script in extension/, i valori calcolati
 # su dataset propri vengono caricati automaticamente da thresholds_computed.json
 # e sovrascrivono i default qui sotto.
 #
-# 4 tipi di threshold × 4 combinazioni (metodo_vpr, matcher) = 16 valori.
+# 5 tipi di threshold × 4 combinazioni (metodo_vpr, matcher) = 20 valori.
 # ---------------------------------------------------------------------------
 THRESHOLDS_DEFAULT = {
-    # metodo1:
+    # metodo1 — Youden (T_B)
     ("metodo1", "megaloc",  "superpoint-lg"):  None,  # TODO
     ("metodo1", "megaloc",  "loftr"):           None,  # TODO
     ("metodo1", "cosplace", "superpoint-lg"):  None,  # TODO
     ("metodo1", "cosplace", "loftr"):           None,  # TODO
-    # metodo2:
+    # metodo2 — best R@1 (T_best)
     ("metodo2", "megaloc",  "superpoint-lg"):  None,  # TODO
     ("metodo2", "megaloc",  "loftr"):           None,  # TODO
     ("metodo2", "cosplace", "superpoint-lg"):  None,  # TODO
     ("metodo2", "cosplace", "loftr"):           None,  # TODO
-    # metodo3:
+    # metodo3 — utility-based, 95% gain retention (T_95)
     ("metodo3", "megaloc",  "superpoint-lg"):  None,  # TODO
     ("metodo3", "megaloc",  "loftr"):           None,  # TODO
     ("metodo3", "cosplace", "superpoint-lg"):  None,  # TODO
     ("metodo3", "cosplace", "loftr"):           None,  # TODO
-    # metodo4:
+    # metodo4 — local non-parametric P(helps)
     ("metodo4", "megaloc",  "superpoint-lg"):  None,  # TODO
     ("metodo4", "megaloc",  "loftr"):           None,  # TODO
     ("metodo4", "cosplace", "superpoint-lg"):  None,  # TODO
     ("metodo4", "cosplace", "loftr"):           None,  # TODO
-    # metodo5:
+    # metodo5 — utility-based logistic (p_help - lambda*p_hurt)
     ("metodo5", "megaloc",  "superpoint-lg"):  None,  # TODO
     ("metodo5", "megaloc",  "loftr"):           None,  # TODO
     ("metodo5", "cosplace", "superpoint-lg"):  None,  # TODO
@@ -69,10 +71,7 @@ def load_thresholds():
     """
     Parte dai default hardcoded e sovrascrive con i valori in thresholds_computed.json
     se il file esiste (prodotto dagli script in extension/).
-    I valori possono essere:
-      - int  → soglia semplice su num_inliers (backward compat)
-      - {"type": "threshold", "value": N}  → soglia semplice
-      - {"type": "logistic", ...}           → modello logistico con SU
+    Ogni valore e' {"type": "threshold", "value": N}.
     """
     thresholds = dict(THRESHOLDS_DEFAULT)
 
@@ -127,14 +126,6 @@ def parse_arguments():
         default=None,
         help="(Extension 6.1) metodo VPR usato (inferito da --preds-dir se non specificato)",
     )
-    parser.add_argument(
-        "--su-csv",
-        type=str,
-        default=None,
-        help="(Extension 6.1) CSV di solo retrieval (query_id, l2_distance, retrieval_rank), "
-             "richiesto per threshold logistiche con SU. NON deve contenere num_inliers/is_positive: "
-             "a test-time il full re-ranking non e' ancora stato calcolato.",
-    )
 
     return parser.parse_args()
 
@@ -152,42 +143,17 @@ def infer_vpr_method(preds_dir):
 
 
 def get_threshold(threshold_type, vpr_method, matcher_name):
-    """
-    Restituisce le info sulla threshold per la combinazione (tipo, metodo_vpr, matcher).
-    Può restituire:
-      - int  → soglia semplice su num_inliers
-      - dict {"type": "threshold", "value": N}
-      - dict {"type": "logistic", "features": [...], params...}
-    """
+    """Restituisce la soglia num_inliers per la combinazione (tipo, metodo_vpr, matcher)."""
     key = (threshold_type, vpr_method, matcher_name)
     if key not in THRESHOLDS:
         raise ValueError(f"Nessuna threshold definita per {key}. Aggiungila a THRESHOLDS_DEFAULT.")
-    value = THRESHOLDS[key]
-    if value is None:
+    info = THRESHOLDS[key]
+    if info is None:
         raise ValueError(
             f"Threshold per {key} non ancora inserita.\n"
             f"Esegui gli script in extension/ per calcolarla."
         )
-    return value
-
-
-def apply_logistic(num_inliers, su_value, logistic_info):
-    """
-    Applica il modello logistico e restituisce True se il re-ranking è consigliato.
-    P(helps) = sigmoid(w * standardize(features) + b)
-    Re-rank se P(helps) > tau.
-    """
-    features_list = []
-    for feat in logistic_info["features"]:
-        if feat == "SU":
-            features_list.append(su_value)
-        elif feat == "num_inliers_top1":
-            features_list.append(float(num_inliers))
-
-    x         = (np.array(features_list) - np.array(logistic_info["scaler_mean"])) / np.array(logistic_info["scaler_scale"])
-    logit_val = np.dot(np.array(logistic_info["coef"][0]), x) + logistic_info["intercept"]
-    p_help    = 1.0 / (1.0 + np.exp(-logit_val))
-    return p_help > logistic_info["tau"]   # True → re-rank
+    return info["value"] if isinstance(info, dict) else info
 
 
 def main(args):
@@ -200,42 +166,13 @@ def main(args):
     start_query  = args.start_query
     num_queries  = args.num_queries
 
-    # --- Extension 6.1: risolve threshold e modalità di skip ---
-    use_threshold  = args.threshold_type is not None
-    use_logistic   = False
-    threshold      = None
-    logistic_info  = None
-    su_dict        = {}
+    # --- Extension 6.1: risolve la threshold se richiesto ---
+    use_threshold = args.threshold_type is not None
+    threshold     = None
 
     if use_threshold:
         vpr_method = args.vpr_method or infer_vpr_method(args.preds_dir)
-        info = get_threshold(args.threshold_type, vpr_method, matcher_name)
-
-        # Normalizza in dict
-        if isinstance(info, int):
-            info = {"type": "threshold", "value": info}
-
-        if info["type"] == "threshold":
-            # Soglia semplice su num_inliers
-            threshold = info["value"]
-
-        elif info["type"] == "logistic":
-            # Modello logistico: carica SU dal CSV se richiesto dalle feature
-            use_logistic  = True
-            logistic_info = info
-            if "SU" in logistic_info["features"]:
-                if args.su_csv is None:
-                    raise ValueError(
-                        "La threshold selezionata usa il segnale SU. "
-                        "Specifica --su-csv con il CSV di solo retrieval del test set "
-                        "(query_id, l2_distance, retrieval_rank — niente num_inliers/is_positive, "
-                        "a test-time il full re-ranking non e' ancora stato calcolato)."
-                    )
-                # SU si ricava solo dalla l2_distance del retrieval: a test-time
-                # non abbiamo ancora ne' ground truth ne' risultati di IM sui 20.
-                su_query_df = compute_su_from_retrieval(args.su_csv)
-                su_dict     = dict(zip(su_query_df["query_id"], su_query_df["SU"]))
-                print(f"[Extension 6.1] SU calcolato da {args.su_csv} ({len(su_dict)} query)")
+        threshold  = get_threshold(args.threshold_type, vpr_method, matcher_name)
 
     output_folder = Path(preds_folder + f"_{matcher_name}") if args.out_dir is None else Path(args.out_dir)
     output_folder.mkdir(exist_ok=True)
@@ -262,16 +199,7 @@ def main(args):
             result_top1["all_desc0"] = result_top1["all_desc1"] = None
             results.append(result_top1)
 
-            # Decisione: re-rank o salta?
-            if use_logistic:
-                # Applica il modello logistico (usa SU e/o num_inliers del top-1)
-                su_val   = su_dict.get(q_num, 0.0)
-                do_rerank = apply_logistic(result_top1["num_inliers"], su_val, logistic_info)
-            else:
-                # Soglia semplice: re-rank se num_inliers è basso
-                do_rerank = result_top1["num_inliers"] < threshold
-
-            if do_rerank:
+            if result_top1["num_inliers"] < threshold:
                 # top-1 non è affidabile: esegui IM su tutti i restanti candidati
                 for pred_path in pred_paths[1:num_preds]:
                     img1   = matcher.load_image(pred_path, resize=img_size)
