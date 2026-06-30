@@ -17,20 +17,6 @@ from matching.utils import get_default_device
 sys.path.append(str(Path(__file__).parent.joinpath("extension")))
 from csv_utils import load_query_level
 
-
-# ---------------------------------------------------------------------------
-# Extension 6.1 — Tabella delle threshold
-#
-# Chiave:  (tipo_threshold, metodo_vpr, matcher)
-# Valore:  num_inliers del top-1 sopra il quale il re-ranking viene saltato
-#
-# Valori default stimati dal team su SVOX (train) + SF-XS (val).
-# Se l'utente ha eseguito gli script in extension/, i valori calcolati
-# su dataset propri vengono caricati automaticamente da thresholds_computed.json
-# e sovrascrivono i default qui sotto.
-#
-# 4 tipi di threshold × 4 combinazioni (metodo_vpr, matcher) = 16 valori.
-# ---------------------------------------------------------------------------
 THRESHOLDS_DEFAULT = {
     # metodo1:
     ("metodo1", "megaloc",  "superpoint-lg"):  None,  # TODO
