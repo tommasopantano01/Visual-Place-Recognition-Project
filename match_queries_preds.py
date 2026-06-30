@@ -21,17 +21,25 @@ from matching.utils import get_default_device
 # Valore:  num_inliers del top-1 sotto il quale il re-ranking viene eseguito
 #          su tutti i top-20 (altrimenti viene saltato)
 #
-# Ogni metodo descritto nel report (Youden T_B, utility-based T_95, local
-# P(helps), utility-based logistic p_help - lambda*p_hurt) e' funzione del
-# solo I_1(q) = num_inliers del top-1: tutti collassano a una singola soglia
-# intera, stimata sul validation set.
+# Ogni metodo descritto nel report e' funzione del solo I_1(q) = num_inliers
+# del top-1: tutti collassano a una singola soglia intera, stimata sul
+# validation set.
+#
+#   metodo1 — Youden (T_B)
+#   metodo2 — best R@1 (T_best) — passo interno usato da T_95, non e' una
+#             policy a se' stante, mantenuto per ora come opzione separata
+#   metodo3 — utility-based, 95% gain retention (T_95)
+#   metodo4 — local non-parametric P(helps)
+#   metodo5 — logistic, criterio P_hard
+#   metodo6 — logistic, criterio P_help
+#   metodo7 — logistic, criterio cost-sensitive (P_help - lambda*P_hurt)
 #
 # Valori default stimati dal team su SVOX (train) + SF-XS (val).
 # Se l'utente ha eseguito gli script in extension/, i valori calcolati
 # su dataset propri vengono caricati automaticamente da thresholds_computed.json
 # e sovrascrivono i default qui sotto.
 #
-# 5 tipi di threshold × 4 combinazioni (metodo_vpr, matcher) = 20 valori.
+# 7 tipi di threshold × 4 combinazioni (metodo_vpr, matcher) = 28 valori.
 # ---------------------------------------------------------------------------
 THRESHOLDS_DEFAULT = {
     # metodo1 — Youden (T_B)
@@ -54,14 +62,24 @@ THRESHOLDS_DEFAULT = {
     ("metodo4", "megaloc",  "loftr"):           None,  # TODO
     ("metodo4", "cosplace", "superpoint-lg"):  None,  # TODO
     ("metodo4", "cosplace", "loftr"):           None,  # TODO
-    # metodo5 — utility-based logistic (p_help - lambda*p_hurt)
+    # metodo5 — logistic, criterio P_hard
     ("metodo5", "megaloc",  "superpoint-lg"):  None,  # TODO
     ("metodo5", "megaloc",  "loftr"):           None,  # TODO
     ("metodo5", "cosplace", "superpoint-lg"):  None,  # TODO
     ("metodo5", "cosplace", "loftr"):           None,  # TODO
+    # metodo6 — logistic, criterio P_help
+    ("metodo6", "megaloc",  "superpoint-lg"):  None,  # TODO
+    ("metodo6", "megaloc",  "loftr"):           None,  # TODO
+    ("metodo6", "cosplace", "superpoint-lg"):  None,  # TODO
+    ("metodo6", "cosplace", "loftr"):           None,  # TODO
+    # metodo7 — logistic, criterio cost-sensitive (P_help - lambda*P_hurt)
+    ("metodo7", "megaloc",  "superpoint-lg"):  None,  # TODO
+    ("metodo7", "megaloc",  "loftr"):           None,  # TODO
+    ("metodo7", "cosplace", "superpoint-lg"):  None,  # TODO
+    ("metodo7", "cosplace", "loftr"):           None,  # TODO
 }
 
-THRESHOLD_TYPES = ["metodo1", "metodo2", "metodo3", "metodo4", "metodo5"]
+THRESHOLD_TYPES = ["metodo1", "metodo2", "metodo3", "metodo4", "metodo5", "metodo6", "metodo7"]
 
 # Percorso del JSON prodotto dagli script in extension/
 _COMPUTED_JSON = Path(__file__).parent / "extension" / "thresholds_computed.json"
