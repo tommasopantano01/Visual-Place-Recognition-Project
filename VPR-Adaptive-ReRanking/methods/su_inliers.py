@@ -1,75 +1,101 @@
 """
-su_inliers/su_inliers.py — Adaptive reranking su SU + num_inliers nello stesso
-regressore. [METODO ACCANTONATO dal team — tenuto solo per riferimento.]
-A differenza di su/, qui SERVE IM minimale sul top-1 (inliers e' una feature).
+methods/su_inliers.py — Adaptive reranking SU+inliers. RIATTIVATO.
 
-Convenzione Rocco: inliers = -num_inliers (pochi inlier -> feature alta ->
-query incerta). Non invertire.
+Come methods/su.py ma il feature set e' ['SU','inliers']: oltre a SU (dalle L2)
+usa num_inliers della top-1, che richiede image matching MINIMALE sul solo
+top-1 di ogni query (molto piu' economico del rerank completo).
 
-Input: --preds-dir PIU' --z-data.
+    score > tau  ->  rerank: IM su TUTTI i candidati top-N (top{N}/)
+    score <= tau ->  skip:   top-1 va bene -> top1/ (.torch del solo top-1,
+                             gia' calcolato per la feature, viene riusato)
 
-probability > tau -> rerank su top-20 (top20/). Altrimenti skip -> top1/
-(.torch del solo top-1, gia' calcolato).
+Convenzione: inliers = -num_inliers (pochi inlier -> feature alta -> incerta).
+Modelli/soglie da validation/su_inliers/. Criteri come in methods/su.py.
+
+Input: --preds-dir e --z-data.
 
 Uso:
-    python VPR-adaptive-re-ranking/su_inliers/su_inliers.py \
+    python VPR-Adaptive-ReRanking/methods/su_inliers.py \
         --preds-dir preds/ --z-data z_data.torch --matcher superpoint-lg \
-        --output-dir out/
+        --output-dir out/ --criterion "P(help)-aP(hurts)"
 """
 import argparse
+import json
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-from _common import (
-    load_threshold_csv, load_model_json, load_z_data_distances, l2_to_su,
-    run_im_top1_with_results, apply_sigmoid, partition_by_probability,
-    save_results_torch, run_im_topN_subset, print_summary, budget_folder,
-)
+import numpy as np
 
-_THRESHOLD_CSV = Path(__file__).parent / "threshold.csv"
-_MODEL_JSON    = Path(__file__).parent / "model.json"
+_HERE = Path(__file__).resolve().parent
+sys.path.append(str(_HERE))              # per 'import su' (stessa cartella)
+sys.path.append(str(_HERE.parent))       # per 'import _common' (cartella radice del metodo)
+from _common import (
+    load_z_data_distances, l2_to_su, run_im_top1_with_results,
+    save_results_torch, run_im_topN_subset, budget_folder, print_summary,
+)
+# riuso le stesse funzioni di scoring del decisore SU
+from su import compute_scores, VALID_CRITERIA  # noqa: F401
+
+_VAL_DIR    = Path(__file__).resolve().parent.parent / "validation" / "su_inliers"
+_MODEL_JSON = _VAL_DIR / "model.json"
+_THR_JSON   = _VAL_DIR / "threshold.csv"
+
+FEATURE_SET = "SU+inliers"
+FEAT_COLS   = ["SU", "inliers"]
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Adaptive reranking — SU + inliers (accantonato)")
-    parser.add_argument("--preds-dir",  required=True)
-    parser.add_argument("--z-data",     required=True, help="path a z_data.torch del retrieval")
-    parser.add_argument("--matcher",    required=True)
-    parser.add_argument("--device",     default="cpu")
-    parser.add_argument("--im-size",    type=int, default=512)
-    parser.add_argument("--num-preds",  type=int, default=20)
-    parser.add_argument("--su-k",       type=int, default=10)
-    parser.add_argument("--su-alpha",   type=float, default=0.5)
-    parser.add_argument("--output-dir", required=True)
-    return parser.parse_args()
+    p = argparse.ArgumentParser(description="Adaptive reranking — SU+inliers (riattivato)")
+    p.add_argument("--preds-dir",  required=True)
+    p.add_argument("--z-data",     required=True, help="path a z_data.torch del retrieval")
+    p.add_argument("--matcher",    required=True)
+    p.add_argument("--device",     default="cpu")
+    p.add_argument("--im-size",    type=int, default=512)
+    p.add_argument("--num-preds",  type=int, default=20)
+    p.add_argument("--su-k",       type=int, default=10)
+    p.add_argument("--su-alpha",   type=float, default=0.5)
+    p.add_argument("--criterion",  default="P(help)-aP(hurts)", choices=VALID_CRITERIA)
+    p.add_argument("--output-dir", required=True)
+    return p.parse_args()
 
 
 def main(args):
-    tau   = load_threshold_csv(_THRESHOLD_CSV)["tau"]
-    model = load_model_json(_MODEL_JSON)
-    print(f"tau (SU+inliers) = {tau}")
+    with open(_MODEL_JSON) as f:
+        model = json.load(f)
+    with open(_THR_JSON) as f:
+        thr = json.load(f)
 
-    results_top1 = run_im_top1_with_results(args.preds_dir, args.matcher, args.device, args.im_size)
-    l2_by_query  = load_z_data_distances(args.z_data)
+    regressors = model["feature_sets"][FEATURE_SET]["regressors"]
+    hp = thr["feature_sets"][FEATURE_SET]["criteria"][args.criterion]
+    print(f"criterio = {args.criterion}   params = {hp}")
 
-    signals = {
-        q: {
-            "SU":       l2_to_su(l2_by_query[q], k=args.su_k, alpha=args.su_alpha),
-            "inliers": -float(r["num_inliers"]),   # convenzione Rocco: inliers negato
-        }
-        for q, r in results_top1.items() if q in l2_by_query
-    }
-    probs = apply_sigmoid(signals, model)
+    # IM minimale sul top-1 di tutte le query: serve per la feature 'inliers'
+    results_top1 = run_im_top1_with_results(args.preds_dir, args.matcher,
+                                            args.device, args.im_size)
+    l2_by_query = load_z_data_distances(args.z_data)
 
-    rerank_ids, skip_ids = partition_by_probability(probs, tau)
+    ids, feats = [], []
+    for q, r in results_top1.items():
+        if q not in l2_by_query:
+            continue
+        su = l2_to_su(l2_by_query[q], k=args.su_k, alpha=args.su_alpha)
+        inl = -float(r["num_inliers"])           # convenzione: negato
+        ids.append(q)
+        feats.append([su, inl])
+    X = np.asarray(feats, dtype=float).reshape(-1, 2)
+
+    score, tau = compute_scores(X, regressors, args.criterion, hp)
+    rerank_ids = [q for q, s in zip(ids, score) if s > tau]
+    skip_ids   = [q for q, s in zip(ids, score) if s <= tau]
     print_summary(rerank_ids, skip_ids)
 
+    # skip -> top1/: riusa il risultato IM del top-1 gia' calcolato
     folder1 = budget_folder(args.output_dir, 1)
     for q in skip_ids:
         save_results_torch(q, [results_top1[q]], folder1)
+    # rerank -> top{num_preds}/: IM completo
     run_im_topN_subset(args.preds_dir, rerank_ids, args.output_dir, args.num_preds,
-                        args.matcher, args.device, args.im_size)
+                       args.matcher, args.device, args.im_size)
 
 
 if __name__ == "__main__":
