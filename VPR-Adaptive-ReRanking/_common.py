@@ -292,7 +292,9 @@ def partition_by_probability(prob_by_query, tau):
 
 def apply_sigmoid(signals_by_query, model_json):
     """Applica scaler + sigmoide a {id: {feature: valore, ...}}. model_json:
-    feat_cols, scaler_mean, scaler_scale, coef, intercept. Ritorna {id: prob}."""
+    feat_cols, scaler_mean, scaler_scale, coef, intercept. Ritorna {id: prob}.
+    Per regressori a 1 feature non dipende dal NOME della feature (il segnale
+    runtime usa 'inliers', il JSON puo' avere 'feature_0'/'num_inliers_top1')."""
     feat_cols = model_json["feat_cols"]
     mean  = np.array(model_json["scaler_mean"])
     scale = np.array(model_json["scaler_scale"])
@@ -301,7 +303,10 @@ def apply_sigmoid(signals_by_query, model_json):
 
     prob_by_query = {}
     for q_id, sig in signals_by_query.items():
-        x = np.array([sig[c] for c in feat_cols], dtype=float)
+        if len(feat_cols) == 1:
+            x = np.array([next(iter(sig.values()))], dtype=float)
+        else:
+            x = np.array([sig[c] for c in feat_cols], dtype=float)
         z = (x - mean) / scale
         logit_val = float(np.dot(w, z) + b)
         prob_by_query[q_id] = 1.0 / (1.0 + np.exp(-logit_val))
