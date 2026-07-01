@@ -45,16 +45,16 @@ sys.path.append(str(_HERE.parent.parent))     # VPR-Adaptive-ReRanking/  (per _c
 from _su_validation import validate_and_save, ALPHAS_GRID, TAUS_GRID
 
 CRITERIA = ("P(help)-aP(hurts)",)
-_DEFAULT_MODEL = _HERE / "model.json"   # pesi accanto al validation, in questa cartella
 
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Validation — logistic_cost_sensitive (P(help)-alpha*P(hurts) > tau)")
+        description="Validation — logistic_cost_sensitive (P(help)-alpha*P(hurts) > tau)"
+    )
     p.add_argument("--val-csv", required=True,
                    help="CSV candidate-level di validation scelto dall'utente (dir o file)")
-    p.add_argument("--model-json", default=str(_DEFAULT_MODEL),
-                   help=f"model.json del training (default: {_DEFAULT_MODEL})")
+    p.add_argument("--model-json", default=None,
+                   help="path al model.json; se omesso usa model_logistic_cost_sensitive_<model>_<matcher>.json")
     p.add_argument("--out-dir", default=str(_HERE),
                    help="dove scrivere threshold.csv (default: questa cartella)")
     p.add_argument("--model", required=True, help="cosplace or megaloc")
@@ -63,9 +63,20 @@ def parse_args():
 
 
 def main(args):
-    # alpha/tau di default = griglie della Cella 2 (alpha in [0,5], tau in [-1,1])
-    validate_and_save(args.out_dir, args.model_json, args.val_csv, args.model, args.matcher,
-                      criteria=CRITERIA, taus=TAUS_GRID, alphas=ALPHAS_GRID)
+    model_json = args.model_json
+    if model_json is None:
+        model_json = _HERE / f"model_logistic_cost_sensitive_{args.model}_{args.matcher}.json"
+
+    validate_and_save(
+        args.out_dir,
+        model_json,
+        args.val_csv,
+        args.model,
+        args.matcher,
+        criteria=CRITERIA,
+        taus=TAUS_GRID,
+        alphas=ALPHAS_GRID
+    )
 
 
 if __name__ == "__main__":
