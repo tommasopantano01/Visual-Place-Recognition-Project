@@ -9,14 +9,15 @@ Catena: --val-csv (candidate-level) -> sweep (_sweep) -> selettore eff95 ->
 threshold.csv. Niente l2_distance, niente model.json.
 
 OUTPUT in --out-dir (default: questa cartella):
-  threshold.csv   numerico (threshold, r1_adaptive_pct, saving_pct), letto dal
-                  deploy via load_threshold_csv -> ["threshold"].
+  threshold_<model>_<matcher>.csv   numerico (threshold, r1_adaptive_pct,
+                  saving_pct), letto dal deploy via load_threshold_csv -> ["threshold"].
   sweep.csv / selection.csv   per il report.
 
 --retention cambia la frazione trattenuta (default 0.95).
 
 Uso:
-    python VPR-Adaptive-ReRanking/validation/efficiency/efficiency.py --val-csv <dir-o-file.csv>
+    python VPR-Adaptive-ReRanking/validation/efficiency/efficiency.py --val-csv <dir-o-file.csv> \
+        --model cosplace --matcher superpoint-lg
 """
 import argparse
 import sys
@@ -33,12 +34,15 @@ def parse_args():
     p.add_argument("--out-dir", default=str(_HERE), help="dove scrivere gli output (default: questa cartella)")
     p.add_argument("--top-k", type=int, default=20)
     p.add_argument("--retention", type=float, default=0.95, help="frazione del guadagno R@1 da trattenere")
+    p.add_argument("--model", required=True, help="cosplace or megaloc")
+    p.add_argument("--matcher", required=True, help="superpoint-lg or loftr")
     return p.parse_args()
 
 
 def main(args):
     sweep = sweep_from_candidate(args.val_csv, top_k=args.top_k)
-    save_outputs(args.out_dir, sweep, select_eff95_threshold(sweep, retention=args.retention))
+    save_outputs(args.out_dir, sweep, select_eff95_threshold(sweep, retention=args.retention),
+                 args.model, args.matcher)
 
 
 if __name__ == "__main__":

@@ -225,7 +225,8 @@ def grid_search(df, p1, p5, p10, taus, k_full=20):
 
 # ── ORCHESTRAZIONE ───────────────────────────────────────────────────
 
-def validate_and_save(out_dir, model_json_path, val_csv, tau_step=0.02, k_full=20):
+def validate_and_save(out_dir, model_json_path, val_csv, vpr_model, matcher,
+                      tau_step=0.02, k_full=20):
     import json
     os.makedirs(out_dir, exist_ok=True)
     with open(model_json_path) as f:
@@ -262,7 +263,7 @@ def validate_and_save(out_dir, model_json_path, val_csv, tau_step=0.02, k_full=2
     print(f"          stop  top1={dist[0]:.1f}%  top5={dist[5]:.1f}%  "
           f"top10={dist[10]:.1f}%  top20={dist[20]:.1f}%")
 
-    thr_path = os.path.join(out_dir, "threshold.csv")
+    thr_path = os.path.join(out_dir, f"threshold_{vpr_model}_{matcher}.csv")
     with open(thr_path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["tau1", "tau5", "tau10"])
@@ -281,11 +282,13 @@ def parse_args():
                    help="dove scrivere threshold.csv (default: questa cartella)")
     p.add_argument("--tau-step", type=float, default=0.02, help="passo griglia tau (default 0.02)")
     p.add_argument("--k-full", type=int, default=20, help="budget massimo (default 20)")
+    p.add_argument("--model", required=True, help="cosplace or megaloc")
+    p.add_argument("--matcher", required=True, help="superpoint-lg or loftr")
     return p.parse_args()
 
 
 def main(args):
-    validate_and_save(args.out_dir, args.model_json, args.val_csv,
+    validate_and_save(args.out_dir, args.model_json, args.val_csv, args.model, args.matcher,
                       tau_step=args.tau_step, k_full=args.k_full)
 
 

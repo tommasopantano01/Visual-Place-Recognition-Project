@@ -7,15 +7,16 @@ Catena: --val-csv (candidate-level) -> sweep (_sweep) -> selettore best_r1 ->
 threshold.csv. Niente l2_distance, niente model.json.
 
 OUTPUT in --out-dir (default: questa cartella):
-  threshold.csv   numerico (threshold, r1_adaptive_pct, saving_pct), letto dal
-                  deploy via load_threshold_csv -> ["threshold"].
+  threshold_<model>_<matcher>.csv   numerico (threshold, r1_adaptive_pct,
+                  saving_pct), letto dal deploy via load_threshold_csv -> ["threshold"].
   sweep.csv / selection.csv   per il report.
 
 NB: best_r1 e' deployabile a se' (cartella propria), ma R@1_best e' anche il
 riferimento interno usato da efficiency (target = 95% del guadagno di best_r1).
 
 Uso:
-    python VPR-Adaptive-ReRanking/validation/best_r1/best_r1.py --val-csv <dir-o-file.csv>
+    python VPR-Adaptive-ReRanking/validation/best_r1/best_r1.py --val-csv <dir-o-file.csv> \
+        --model cosplace --matcher superpoint-lg
 """
 import argparse
 import sys
@@ -31,12 +32,14 @@ def parse_args():
     p.add_argument("--val-csv", required=True, help="candidate-level CSV di validation (file o dir)")
     p.add_argument("--out-dir", default=str(_HERE), help="dove scrivere gli output (default: questa cartella)")
     p.add_argument("--top-k", type=int, default=20)
+    p.add_argument("--model", required=True, help="cosplace or megaloc")
+    p.add_argument("--matcher", required=True, help="superpoint-lg or loftr")
     return p.parse_args()
 
 
 def main(args):
     sweep = sweep_from_candidate(args.val_csv, top_k=args.top_k)
-    save_outputs(args.out_dir, sweep, select_best_r1_threshold(sweep))
+    save_outputs(args.out_dir, sweep, select_best_r1_threshold(sweep), args.model, args.matcher)
 
 
 if __name__ == "__main__":

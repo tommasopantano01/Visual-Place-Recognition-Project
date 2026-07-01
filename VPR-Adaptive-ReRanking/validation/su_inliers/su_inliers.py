@@ -2,11 +2,12 @@
 validation/su_inliers — SOLA VALIDATION del metodo SU+inliers (['SU','inliers']).
 
 NON allena. Legge training/su_inliers/model.json (default) e cerca le soglie sul
-dataset di VALIDATION indicato con --val-csv. Scrive threshold.csv qui.
+dataset di VALIDATION indicato con --val-csv. Scrive
+threshold_<model>_<matcher>.csv qui.
 
 Uso:
     python VPR-Adaptive-ReRanking/validation/su_inliers/su_inliers.py \
-        --val-csv <dir-o-file.csv>
+        --val-csv <dir-o-file.csv> --model cosplace --matcher superpoint-lg
 """
 import argparse
 import sys
@@ -28,11 +29,13 @@ def parse_args():
                    help=f"model.json del training (default: {_DEFAULT_MODEL})")
     p.add_argument("--out-dir", default=str(_HERE),
                    help="dove scrivere threshold.csv (default: questa cartella)")
+    p.add_argument("--model", required=True, help="cosplace or megaloc")
+    p.add_argument("--matcher", required=True, help="superpoint-lg or loftr")
     return p.parse_args()
 
 
 def main(args):
-    validate_and_save(args.out_dir, args.model_json, args.val_csv)
+    validate_and_save(args.out_dir, args.model_json, args.val_csv, args.model, args.matcher)
 
 
 if __name__ == "__main__":

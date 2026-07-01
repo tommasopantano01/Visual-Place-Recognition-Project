@@ -7,16 +7,20 @@ Catena: --val-csv (candidate-level) -> sweep delle soglie (_sweep) ->
 selettore youden -> threshold.csv. Niente l2_distance, niente model.json.
 
 OUTPUT in --out-dir (default: questa cartella):
-  threshold.csv   PIATTO e numerico (threshold, r1_adaptive_pct, saving_pct);
-                  il deploy lo legge con load_threshold_csv -> ["threshold"].
+  threshold_<model>_<matcher>.csv   PIATTO e numerico (threshold, r1_adaptive_pct,
+                  saving_pct); il deploy lo legge con load_threshold_csv -> ["threshold"].
   sweep.csv       sweep completo (per il report).
   selection.csv   riga scelta con la colonna 'method' (per il report).
 
 --val-csv accetta un file o una directory di candidate-level CSV (colonne
 query_id, retrieval_rank, num_inliers, rerank_rank_topK, is_positive, K).
 
+--model/--matcher identificano la coppia (retrieval, image matching) su cui e'
+calibrata la soglia: finiscono nel nome del threshold.csv in output.
+
 Uso:
-    python VPR-Adaptive-ReRanking/validation/youden/youden.py --val-csv <dir-o-file.csv>
+    python VPR-Adaptive-ReRanking/validation/youden/youden.py --val-csv <dir-o-file.csv> \
+        --model cosplace --matcher superpoint-lg
 """
 import argparse
 import sys
@@ -33,14 +37,13 @@ def parse_args():
     p.add_argument("--out-dir", default=str(_HERE), help="dove scrivere gli output (default: methods folder)")
     p.add_argument("--top-k", type=int, default=20)
     p.add_argument("--model", required=True, help="cosplace or megaloc")
-    p.add_argument("--model", required=True, help="superpoint-lg or loftr")
-  
+    p.add_argument("--matcher", required=True, help="superpoint-lg or loftr")
     return p.parse_args()
 
 
 def main(args):
     sweep = sweep_from_candidate(args.val_csv, top_k=args.top_k)
-    save_outputs(args.out_dir, sweep, select_youden_threshold(sweep))
+    save_outputs(args.out_dir, sweep, select_youden_threshold(sweep), args.model, args.matcher)
 
 
 if __name__ == "__main__":

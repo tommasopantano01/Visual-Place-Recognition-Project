@@ -129,10 +129,12 @@ def grid_search_criteria(df_val, regressors, feat_cols, criteria=SU_CRITERIA,
 
 # ── orchestrazione: legge model.json, valida, scrive threshold.csv ──
 
-def validate_and_save(val_dir, model_json_path, val_csv, criteria=SU_CRITERIA,
-                      taus=TAUS_GRID, alphas=ALPHAS_GRID):
+def validate_and_save(val_dir, model_json_path, val_csv, vpr_model, matcher,
+                      criteria=SU_CRITERIA, taus=TAUS_GRID, alphas=ALPHAS_GRID):
     """Legge model.json (training), esegue grid-search su val_csv (dataset
-    scelto dall'utente) e scrive val_dir/threshold.csv. NON allena.
+    scelto dall'utente) e scrive val_dir/threshold_<vpr_model>_<matcher>.csv.
+    NON allena. vpr_model/matcher identificano la coppia (retrieval, image
+    matching) su cui e' stata calibrata questa soglia.
     criteria/taus/alphas: configurabili dal metodo chiamante (SU usa i default;
     logistic_help passa criteria=('P(help)',) e taus in [0,1])."""
     os.makedirs(val_dir, exist_ok=True)
@@ -166,6 +168,8 @@ def validate_and_save(val_dir, model_json_path, val_csv, criteria=SU_CRITERIA,
 
     thr = {
         "metadata": {
+            "vpr_model": vpr_model,
+            "matcher": matcher,
             "feature_set": feature_set,
             "model_json": str(model_json_path),
             "val_csv": str(val_csv),
@@ -179,7 +183,7 @@ def validate_and_save(val_dir, model_json_path, val_csv, criteria=SU_CRITERIA,
         },
         "feature_sets": {feature_set: {"feat_cols": list(feat_cols), "criteria": crit}},
     }
-    thr_path = os.path.join(val_dir, "threshold.csv")
+    thr_path = os.path.join(val_dir, f"threshold_{vpr_model}_{matcher}.csv")
     with open(thr_path, "w") as f:
         json.dump(thr, f, indent=2)
     print(f"  -> {thr_path}")

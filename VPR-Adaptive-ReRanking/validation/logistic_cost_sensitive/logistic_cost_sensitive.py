@@ -23,14 +23,17 @@ INPUT: --val-csv e' un CSV candidate-level (dir o file singolo) con le colonne
 standard (query_id, l2_distance, retrieval_rank, num_inliers, rerank_rank_topK,
 is_positive). Il loader condiviso (load_query_level) richiede l2_distance e
 >=20 candidati/query anche se il cost-sensitive usa solo num_inliers_top1.
-L'utente cambia il set con --val-csv. Scrive threshold.csv in questa cartella.
+L'utente cambia il set con --val-csv. Scrive threshold_<model>_<matcher>.csv in
+questa cartella. --model/--matcher identificano la coppia (retrieval, image
+matching) su cui e' calibrata la soglia.
 
 Uso:
     python VPR-Adaptive-ReRanking/validation/logistic_cost_sensitive/logistic_cost_sensitive.py \
-        --val-csv <dir-o-file.csv>
+        --val-csv <dir-o-file.csv> --model cosplace --matcher superpoint-lg
     # pesi/output in posizioni non standard:
     python VPR-Adaptive-ReRanking/validation/logistic_cost_sensitive/logistic_cost_sensitive.py \
-        --val-csv <...> --model-json <path/model.json> --out-dir <path/>
+        --val-csv <...> --model-json <path/model.json> --out-dir <path/> \
+        --model cosplace --matcher superpoint-lg
 """
 import argparse
 import sys
@@ -54,12 +57,14 @@ def parse_args():
                    help=f"model.json del training (default: {_DEFAULT_MODEL})")
     p.add_argument("--out-dir", default=str(_HERE),
                    help="dove scrivere threshold.csv (default: questa cartella)")
+    p.add_argument("--model", required=True, help="cosplace or megaloc")
+    p.add_argument("--matcher", required=True, help="superpoint-lg or loftr")
     return p.parse_args()
 
 
 def main(args):
     # alpha/tau di default = griglie della Cella 2 (alpha in [0,5], tau in [-1,1])
-    validate_and_save(args.out_dir, args.model_json, args.val_csv,
+    validate_and_save(args.out_dir, args.model_json, args.val_csv, args.model, args.matcher,
                       criteria=CRITERIA, taus=TAUS_GRID, alphas=ALPHAS_GRID)
 
 

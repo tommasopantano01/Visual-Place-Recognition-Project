@@ -27,7 +27,7 @@ zero (niente checkpoint intra-stage).
 
 Uso:
     python VPR-adaptive-re-ranking/sequential/sequential.py \
-        --preds-dir preds/ --matcher superpoint-lg --output-dir out/
+        --preds-dir preds/ --model cosplace --matcher superpoint-lg --output-dir out/
 """
 import argparse
 import sys
@@ -40,13 +40,14 @@ from _common import (
     partition_by_probability, save_results_torch, query_already_done,
 )
 
-_THRESHOLD_CSV = Path(__file__).parent / "threshold.csv"
-_MODEL_JSON    = Path(__file__).parent / "model.json"
+_VALIDATION_DIR = Path(__file__).resolve().parent.parent / "validation" / "sequential"
+_MODEL_JSON = _VALIDATION_DIR / "model.json"
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Adaptive reranking — sequential (1->5->10->20)")
     parser.add_argument("--preds-dir",  required=True)
+    parser.add_argument("--model",      required=True, help="cosplace or megaloc")
     parser.add_argument("--matcher",    required=True)
     parser.add_argument("--device",     default="cpu")
     parser.add_argument("--im-size",    type=int, default=512)
@@ -68,9 +69,10 @@ def finalize(query_ids, accumulated, output_dir, budget):
 
 
 def main(args):
-    hp     = load_threshold_csv(_THRESHOLD_CSV)   # tau1, tau5, tau10
+    threshold_csv = _VALIDATION_DIR / f"threshold_{args.model}_{args.matcher}.csv"
+    hp     = load_threshold_csv(threshold_csv)   # tau1, tau5, tau10
     models = load_model_json(_MODEL_JSON)         # gate1, gate5, gate10
-    print(f"tau1={hp['tau1']}  tau5={hp['tau5']}  tau10={hp['tau10']}")
+    print(f"tau1={hp['tau1']}  tau5={hp['tau5']}  tau10={hp['tau10']}  [{args.model}/{args.matcher}]")
 
     budgets = (1, 5, 10, args.num_preds)
     all_ids = get_query_ids(args.preds_dir)

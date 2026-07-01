@@ -191,11 +191,13 @@ def select_eff95_threshold(sweep, retention=0.95):
 
 # ── SALVATAGGIO OUTPUT (comune ai tre wrapper) ───────────────────────
 
-def save_outputs(out_dir, sweep, selection):
-    """threshold.csv numerico (deploy) + sweep.csv e selection.csv per il report."""
+def save_outputs(out_dir, sweep, selection, vpr_model, matcher):
+    """threshold_<vpr_model>_<matcher>.csv numerico (deploy) + sweep.csv e
+    selection.csv per il report. vpr_model/matcher identificano la coppia
+    (retrieval, image matching) su cui e' stata calibrata questa soglia."""
     os.makedirs(out_dir, exist_ok=True)
     r = selection.iloc[0]
-    thr_path = os.path.join(out_dir, "threshold.csv")
+    thr_path = os.path.join(out_dir, f"threshold_{vpr_model}_{matcher}.csv")
     with open(thr_path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["threshold", "r1_adaptive_pct", "saving_pct"])

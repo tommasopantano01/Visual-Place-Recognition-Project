@@ -12,14 +12,17 @@ argmax R@1 adattiva, tie-break meno reranking) ma con:
   - feature num_inliers_top1     (il loader la fornisce grezza, non negata)
 
 NON allena: legge il model.json gia' prodotto dal training
-(training/logistic_help/model.json di default). Scrive threshold.csv qui, con la
-STESSA struttura dei metodi SU (feature_sets -> criteria -> P(help)).
+(training/logistic_help/model.json di default). Scrive threshold_<model>_<matcher>.csv
+qui, con la STESSA struttura dei metodi SU (feature_sets -> criteria -> P(help)).
 
 Il model.json deve avere un regressore 'help' con feat_cols=['num_inliers_top1'].
 
+--model/--matcher identificano la coppia (retrieval, image matching) su cui e'
+calibrata la soglia: finiscono nel nome del threshold.csv in output.
+
 Uso:
     python VPR-Adaptive-ReRanking/validation/logistic_help/logistic_help.py \
-        --val-csv <dir-o-file.csv>
+        --val-csv <dir-o-file.csv> --model cosplace --matcher superpoint-lg
 """
 import argparse
 import sys
@@ -47,11 +50,13 @@ def parse_args():
                    help=f"model.json del training (default: {_DEFAULT_MODEL})")
     p.add_argument("--out-dir", default=str(_HERE),
                    help="dove scrivere threshold.csv (default: questa cartella)")
+    p.add_argument("--model", required=True, help="cosplace or megaloc")
+    p.add_argument("--matcher", required=True, help="superpoint-lg or loftr")
     return p.parse_args()
 
 
 def main(args):
-    validate_and_save(args.out_dir, args.model_json, args.val_csv,
+    validate_and_save(args.out_dir, args.model_json, args.val_csv, args.model, args.matcher,
                       criteria=CRITERIA, taus=TAUS_GRID_PROB)
 
 

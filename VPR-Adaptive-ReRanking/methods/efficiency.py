@@ -1,12 +1,13 @@
 """
-efficiency/efficiency.py — Applica la threshold gia' calibrata in threshold.csv.
+efficiency/efficiency.py — Applica la threshold gia' calibrata in
+validation/efficiency/threshold_<model>_<matcher>.csv.
 
 Soglia: num_inliers(top-1) < threshold -> rerank su top-20 (torch_folder).
 Altrimenti skip: copia il .txt originale del retrieval (txt_folder).
 
 Uso:
     python VPR-adaptive-re-ranking/efficiency/efficiency.py \
-        --preds-dir preds/ --matcher superpoint-lg --output-dir out/
+        --preds-dir preds/ --model cosplace --matcher superpoint-lg --output-dir out/
 """
 import argparse
 import sys
@@ -15,12 +16,13 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from _common import load_threshold_csv, run_scalar_method
 
-_THRESHOLD_CSV = Path(__file__).parent / "threshold.csv"
+_VALIDATION_DIR = Path(__file__).resolve().parent.parent / "validation" / "efficiency"
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Adaptive reranking — efficiency")
     parser.add_argument("--preds-dir",  required=True)
+    parser.add_argument("--model",      required=True, help="cosplace or megaloc")
     parser.add_argument("--matcher",    required=True)
     parser.add_argument("--device",     default="cpu")
     parser.add_argument("--im-size",    type=int, default=512)
@@ -30,8 +32,9 @@ def parse_args():
 
 
 def main(args):
-    threshold = int(load_threshold_csv(_THRESHOLD_CSV)["threshold"])
-    print(f"threshold (efficiency) = {threshold}")
+    threshold_csv = _VALIDATION_DIR / f"threshold_{args.model}_{args.matcher}.csv"
+    threshold = int(load_threshold_csv(threshold_csv)["threshold"])
+    print(f"threshold (efficiency) = {threshold}  [{args.model}/{args.matcher}]")
     run_scalar_method(args.preds_dir, threshold, args.matcher, args.device,
                        args.im_size, args.num_preds, args.output_dir)
 

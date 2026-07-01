@@ -1,15 +1,16 @@
 """
 logistic_cost_sensitive/logistic_cost_sensitive.py — Utility-based logistic
 policy: S = P(help|inliers) - lambda*P(hurt|inliers). Due regressori distinti
-nello stesso model.json {"help": {...}, "hurt": {...}}, lambda e tau gia'
-calibrati su validation.
+nello stesso validation/logistic_cost_sensitive/model.json {"help": {...}, "hurt": {...}},
+lambda e tau gia' calibrati in
+validation/logistic_cost_sensitive/threshold_<model>_<matcher>.csv.
 
 S > tau -> rerank su top-20 (top20/). Altrimenti skip -> top1/ (.torch del
 solo top-1, gia' calcolato).
 
 Uso:
     python VPR-adaptive-re-ranking/logistic_cost_sensitive/logistic_cost_sensitive.py \
-        --preds-dir preds/ --matcher superpoint-lg --output-dir out/
+        --preds-dir preds/ --model cosplace --matcher superpoint-lg --output-dir out/
 """
 import argparse
 import sys
@@ -22,13 +23,14 @@ from _common import (
     print_summary, budget_folder,
 )
 
-_THRESHOLD_CSV = Path(__file__).parent / "threshold.csv"
-_MODEL_JSON    = Path(__file__).parent / "model.json"
+_VALIDATION_DIR = Path(__file__).resolve().parent.parent / "validation" / "logistic_cost_sensitive"
+_MODEL_JSON = _VALIDATION_DIR / "model.json"
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Adaptive reranking — cost-sensitive (P_help - lambda*P_hurt)")
     parser.add_argument("--preds-dir",  required=True)
+    parser.add_argument("--model",      required=True, help="cosplace or megaloc")
     parser.add_argument("--matcher",    required=True)
     parser.add_argument("--device",     default="cpu")
     parser.add_argument("--im-size",    type=int, default=512)
@@ -38,11 +40,12 @@ def parse_args():
 
 
 def main(args):
-    hp     = load_threshold_csv(_THRESHOLD_CSV)
+    threshold_csv = _VALIDATION_DIR / f"threshold_{args.model}_{args.matcher}.csv"
+    hp     = load_threshold_csv(threshold_csv)
     lam    = hp["lambda"]
     tau    = hp["tau"]
     models = load_model_json(_MODEL_JSON)   # {"help": {...}, "hurt": {...}}
-    print(f"lambda = {lam}   tau = {tau}")
+    print(f"lambda = {lam}   tau = {tau}   [{args.model}/{args.matcher}]")
 
     results_top1 = run_im_top1_with_results(args.preds_dir, args.matcher, args.device, args.im_size)
     signals = {q: {"inliers": r["num_inliers"]} for q, r in results_top1.items()}

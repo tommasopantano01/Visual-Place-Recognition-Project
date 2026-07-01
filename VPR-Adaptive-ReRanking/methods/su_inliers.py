@@ -36,8 +36,9 @@ from su import compute_scores, write_filtered_preds, run_matcher_on_dir, VALID_C
 _ARR_DIR   = _HERE.parent
 _REPO_ROOT = _ARR_DIR.parent
 _MATCH_SCRIPT = _REPO_ROOT / "match_queries_preds.py"
-_MODEL_JSON = _ARR_DIR / "training" / "su_inliers" / "model.json"
-_THR_JSON   = _ARR_DIR / "validation" / "su_inliers" / "threshold.csv"
+_VAL_DIR    = _ARR_DIR / "validation" / "su_inliers"
+# NB: model.json vive in validation/su_inliers/ (non in training/su_inliers/, che non esiste)
+_MODEL_JSON = _VAL_DIR / "model.json"
 
 FEATURE_SET = "SU+inliers"
 
@@ -80,6 +81,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Adaptive reranking — SU+inliers (un comando)")
     p.add_argument("--preds-dir",  required=True)
     p.add_argument("--z-data",     required=True)
+    p.add_argument("--model",      required=True, help="cosplace or megaloc")
     p.add_argument("--matcher",    required=True)
     p.add_argument("--device",     default="cpu")
     p.add_argument("--im-size",    type=int, default=512)
@@ -89,19 +91,21 @@ def parse_args():
     p.add_argument("--criterion",  default="P(help)-aP(hurts)", choices=VALID_CRITERIA)
     p.add_argument("--output-dir", required=True)
     p.add_argument("--model-json", default=str(_MODEL_JSON))
-    p.add_argument("--threshold-json", default=str(_THR_JSON))
+    p.add_argument("--threshold-json", default=None,
+                   help="default: validation/su_inliers/threshold_<model>_<matcher>.csv")
     return p.parse_args()
 
 
 def main(args):
+    threshold_json = args.threshold_json or str(_VAL_DIR / f"threshold_{args.model}_{args.matcher}.csv")
     with open(args.model_json) as f:
-        model = json.load(f)
-    with open(args.threshold_json) as f:
+        model_data = json.load(f)
+    with open(threshold_json) as f:
         thr = json.load(f)
 
-    regressors = model["feature_sets"][FEATURE_SET]["regressors"]
+    regressors = model_data["feature_sets"][FEATURE_SET]["regressors"]
     hp = thr["feature_sets"][FEATURE_SET]["criteria"][args.criterion]
-    print(f"criterio = {args.criterion}   params = {hp}")
+    print(f"criterio = {args.criterion}   params = {hp}   [{args.model}/{args.matcher}]")
 
     # 1. matching top-1 su tutte le query (feature) — via script del prof
     top1_dir = Path(args.output_dir) / "_match_top1"

@@ -37,8 +37,9 @@ from _common import load_z_data_distances, l2_to_su, get_query_ids, print_summar
 _ARR_DIR  = _HERE.parent                                   # VPR-Adaptive-ReRanking/
 _REPO_ROOT = _ARR_DIR.parent                               # radice repo
 _MATCH_SCRIPT = _REPO_ROOT / "match_queries_preds.py"      # script del prof
-_MODEL_JSON = _ARR_DIR / "training" / "su" / "model.json"
-_THR_JSON   = _ARR_DIR / "validation" / "su" / "threshold.csv"
+_VAL_DIR    = _ARR_DIR / "validation" / "su"
+# NB: model.json vive in validation/su/ (non in training/su/, che non esiste)
+_MODEL_JSON = _VAL_DIR / "model.json"
 
 FEATURE_SET = "SU"
 VALID_CRITERIA = ("P(hard)", "P(help)", "P(help)-aP(hurts)")
@@ -103,6 +104,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Adaptive reranking — SU (un comando)")
     p.add_argument("--preds-dir",  required=True)
     p.add_argument("--z-data",     required=True, help="path a z_data.torch del retrieval")
+    p.add_argument("--model",      required=True, help="cosplace or megaloc")
     p.add_argument("--matcher",    required=True)
     p.add_argument("--device",     default="cpu")
     p.add_argument("--im-size",    type=int, default=512)
@@ -112,19 +114,21 @@ def parse_args():
     p.add_argument("--criterion",  default="P(help)-aP(hurts)", choices=VALID_CRITERIA)
     p.add_argument("--output-dir", required=True)
     p.add_argument("--model-json", default=str(_MODEL_JSON))
-    p.add_argument("--threshold-json", default=str(_THR_JSON))
+    p.add_argument("--threshold-json", default=None,
+                   help="default: validation/su/threshold_<model>_<matcher>.csv")
     return p.parse_args()
 
 
 def main(args):
+    threshold_json = args.threshold_json or str(_VAL_DIR / f"threshold_{args.model}_{args.matcher}.csv")
     with open(args.model_json) as f:
-        model = json.load(f)
-    with open(args.threshold_json) as f:
+        model_data = json.load(f)
+    with open(threshold_json) as f:
         thr = json.load(f)
 
-    regressors = model["feature_sets"][FEATURE_SET]["regressors"]
+    regressors = model_data["feature_sets"][FEATURE_SET]["regressors"]
     hp = thr["feature_sets"][FEATURE_SET]["criteria"][args.criterion]
-    print(f"criterio = {args.criterion}   params = {hp}")
+    print(f"criterio = {args.criterion}   params = {hp}   [{args.model}/{args.matcher}]")
 
     # 1-2. SU -> score -> decisione
     query_ids = get_query_ids(args.preds_dir)
