@@ -90,16 +90,29 @@ def parse_args():
     p.add_argument("--su-alpha",   type=float, default=0.5)
     p.add_argument("--criterion",  default="P(help)", choices=VALID_CRITERIA)
     p.add_argument("--output-dir", required=True)
-    p.add_argument("--model-json", default=str(_VAL_DIR / f"model_su_num_inliers_{args.model}_{args.matcher}.loftr"))
+    p.add_argument(
+    "--model-json",
+    default=None,
+    help="default: validation/su_inliers/model_su_num_inliers_<model>_<matcher>.json"
+)
     p.add_argument("--threshold-json", default=None,
                    help="default: validation/su_inliers/threshold_<model>_<matcher>.csv")
     return p.parse_args()
 
 
 def main(args):
-    threshold_json = args.threshold_json or str(_VAL_DIR / f"threshold_{args.model}_{args.matcher}.csv")
-    with open(args.model_json) as f:
+    def main(args):
+    model_json = args.model_json or str(
+        _VAL_DIR / f"model_su_num_inliers_{args.model}_{args.matcher}.json"
+    )
+
+    threshold_json = args.threshold_json or str(
+        _VAL_DIR / f"threshold_{args.model}_{args.matcher}.csv"
+    )
+
+    with open(model_json) as f:
         model_data = json.load(f)
+
     with open(threshold_json) as f:
         thr = json.load(f)
 
