@@ -1,0 +1,73 @@
+{
+  "metadata": {
+    "method": "logistic_cost_sensitive",
+    "vpr_model": "megaloc",
+    "matcher": "superpoint-lg",
+    "train_set": "svox_train",
+    "target_help": "helps20",
+    "target_hurts": "hurts20",
+    "feature_set": "num_inliers_top1",
+    "feat_cols": [
+      "num_inliers_top1"
+    ],
+    "created_at": "2026-07-01T17:56:27.036364+00:00",
+    "source_help_json": "/mnt/data/logreg_p_helps20_given_num_inliers_top1_megaloc_svox_train_sp-lg.json",
+    "source_hurts_json": "/mnt/data/logreg_p_hurts20_given_num_inliers_top1_megaloc_svox_train_sp-lg.json",
+    "note": "Built by merging separate P(help) and P(hurts) logistic regressors into the single model.json format expected by validation/logistic_cost_sensitive.py."
+  },
+  "feature_sets": {
+    "num_inliers_top1": {
+      "feat_cols": [
+        "num_inliers_top1"
+      ],
+      "regressors": {
+        "help": {
+          "feat_cols": [
+            "num_inliers_top1"
+          ],
+          "scaler_mean": [
+            157.71338763945457
+          ],
+          "scaler_scale": [
+            95.52428434659002
+          ],
+          "coef": [
+            [
+              -6.064025421744108
+            ]
+          ],
+          "intercept": [
+            -6.411593538964979
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "hurts": {
+          "feat_cols": [
+            "num_inliers_top1"
+          ],
+          "scaler_mean": [
+            157.71338763945457
+          ],
+          "scaler_scale": [
+            95.52428434659002
+          ],
+          "coef": [
+            [
+              -2.609898365906616
+            ]
+          ],
+          "intercept": [
+            -1.6929847604790447
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        }
+      }
+    }
+  }
+}
