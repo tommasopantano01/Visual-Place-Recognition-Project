@@ -37,7 +37,7 @@ python VPR-methods-evaluation/main.py \
 --queries_folder '<path-to-queries-folder>' \
 --num_preds_to_save 20 \
 --recall_values 1 5 10 20 \
---save_for_uncertainty
+--save_for_uncertainty #Must be on, we will use z_data torch in next steps 
 ```
 ## Run Image Matching on Retrieval Results
 ```sh
