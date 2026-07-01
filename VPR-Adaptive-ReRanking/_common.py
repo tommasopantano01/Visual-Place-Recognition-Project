@@ -90,10 +90,46 @@ def get_query_ids(preds_dir):
 
 
 def load_threshold_csv(path):
-    """Legge threshold.csv (una riga, una o piu' colonne numeriche) come dict."""
+    """Legge threshold_<model>_<matcher>.csv in due formati:
+      1) CSV piatto  -> una riga, colonne numeriche (es. youden: 'threshold').
+      2) JSON annidato (validation SU/logistic) -> estrae i parametri del
+         criterio calibrato (tau, ed eventualmente alpha) e li appiattisce.
+    Ritorna sempre un dict {nome: float}.
+    """
     with open(path) as f:
+        head = f.read(1).lstrip()
+        f.seek(0)
+
+        # --- formato JSON (validation SU/logistic) ---
+        if head == "{":
+            data = json.load(f)
+            fs = data["feature_sets"]
+            fs_name = next(iter(fs))                     # unico feature set
+            crit = fs[fs_name]["criteria"]
+            if not crit:
+                raise ValueError(
+                    f"{path}: nessun criterio calibrato nel threshold JSON "
+                    "(la validation ha saltato tutti i criteri)."
+                )
+            crit_name = next(iter(crit))                 # unico criterio calibrato
+            params = crit[crit_name]
+            out = {}
+            if "tau" in params:
+                out["tau"] = float(params["tau"])
+            if "alpha" in params:
+                out["alpha"] = float(params["alpha"])
+            if "threshold" in params:                    # per SU su soglia scalare
+                out["threshold"] = float(params["threshold"])
+            if not out:
+                raise ValueError(
+                    f"{path}: criterio '{crit_name}' senza parametri numerici "
+                    f"riconosciuti ({list(params.keys())})."
+                )
+            return out
+
+        # --- formato CSV piatto (una riga) ---
         row = next(csv.DictReader(f))
-    return {k: float(v) for k, v in row.items()}
+        return {k: float(v) for k, v in row.items()}
 
 
 def load_model_json(path):
