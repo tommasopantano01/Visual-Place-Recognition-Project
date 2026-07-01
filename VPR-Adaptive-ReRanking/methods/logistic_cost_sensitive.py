@@ -42,7 +42,7 @@ def parse_args():
 def main(args):
     threshold_csv = _VALIDATION_DIR / f"threshold_{args.model}_{args.matcher}.csv"
     hp     = load_threshold_csv(threshold_csv)
-    lam    = hp["lambda"]
+    lam    = hp["alpha"]
     tau    = hp["tau"]
     models = load_model_json(_MODEL_JSON)   # {"help": {...}, "hurt": {...}}
     print(f"lambda = {lam}   tau = {tau}   [{args.model}/{args.matcher}]")
