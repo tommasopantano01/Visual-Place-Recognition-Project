@@ -67,7 +67,7 @@ python -m vpr_uncertainty.eval \
 
 # Adaptive Re-ranking (extension)
 
-Full re-ranking runs image matching (IM) on **all** top-20 candidates of every query, which is expensive. **Adaptive re-ranking** first runs IM only on the **top-1** candidate and, from that cheap signal, decides **per query** whether it is worth re-ranking the full top-20 or keeping the retrieval order. Each method differs only in *how* it makes that decision; the decision variable is the number of inliers of the top-1 match (`num_inliers_top1`).
+Full re-ranking runs image matching (IM) on **all** top-20 candidates of every query, which is expensive. **Adaptive re-ranking** first runs IM only on the **top-1** candidate and, from that cheap signal, decides **per query** whether it is worth re-ranking the full top-20 or keeping the retrieval order. Each method differs only in *how* it makes that decision; the decision variable is the number of inliers of the top-1 match (`num_inliers_top1`), except for SU approach which relies on retrieval results.
 
 All the code lives in [`VPR-Adaptive-ReRanking/`](./VPR-Adaptive-ReRanking).
 
