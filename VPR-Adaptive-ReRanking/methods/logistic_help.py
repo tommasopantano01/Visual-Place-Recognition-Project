@@ -20,7 +20,6 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from _common import load_threshold_csv, load_model_json, run_logistic_single
 
 _VALIDATION_DIR = Path(__file__).resolve().parent.parent / "validation" / "logistic_help"
-_MODEL_JSON = _VALIDATION_DIR / "model.json"
 
 
 def parse_args():
@@ -38,7 +37,8 @@ def parse_args():
 def main(args):
     threshold_csv = _VALIDATION_DIR / f"threshold_{args.model}_{args.matcher}.csv"
     tau = load_threshold_csv(threshold_csv)["tau"]
-    regressor = load_model_json(_MODEL_JSON)
+    _m = load_model_json(_VALIDATION_DIR / f"model_{args.model}_{args.matcher}.json")
+    regressor = _m["feature_sets"][next(iter(_m["feature_sets"]))]["regressors"]["help"]
     print(f"tau (P_help) = {tau}  [{args.model}/{args.matcher}]")
     run_logistic_single(args.preds_dir, tau, regressor, args.matcher, args.device,
                          args.im_size, args.num_preds, args.output_dir)
