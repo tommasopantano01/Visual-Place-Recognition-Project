@@ -291,15 +291,19 @@ def partition_by_probability(prob_by_query, tau):
 # ============================================================
 
 def apply_sigmoid(signals_by_query, model_json):
-    """Applica scaler + sigmoide a {id: {feature: valore, ...}}. model_json:
-    feat_cols, scaler_mean, scaler_scale, coef, intercept. Ritorna {id: prob}.
+    """Applica scaler + sigmoide a {id: {feature: valore, ...}}. Ritorna {id: prob}.
+
+    Accetta model_json in due formati:
+      - PIATTO:   {feat_cols, scaler_mean, scaler_scale, coef, intercept, ...}
+      - ANNIDATO: {feature_sets: {<fs>: {regressors: {<target>: <piatto>}}}}
     Per regressori a 1 feature non dipende dal NOME della feature (il segnale
     runtime usa 'inliers', il JSON puo' avere 'feature_0'/'num_inliers_top1')."""
-    feat_cols = model_json["feat_cols"]
-    mean  = np.array(model_json["scaler_mean"])
-    scale = np.array(model_json["scaler_scale"])
-    w     = np.array(model_json["coef"][0])
-    b     = model_json["intercept"][0]
+    reg = _extract_flat_regressor(model_json)
+    feat_cols = reg["feat_cols"]
+    mean  = np.array(reg["scaler_mean"])
+    scale = np.array(reg["scaler_scale"])
+    w     = np.array(reg["coef"][0])
+    b     = reg["intercept"][0]
 
     prob_by_query = {}
     for q_id, sig in signals_by_query.items():
@@ -311,6 +315,27 @@ def apply_sigmoid(signals_by_query, model_json):
         logit_val = float(np.dot(w, z) + b)
         prob_by_query[q_id] = 1.0 / (1.0 + np.exp(-logit_val))
     return prob_by_query
+
+
+def _extract_flat_regressor(model_json):
+    """Ritorna il dict regressore PIATTO (feat_cols/scaler_*/coef/intercept) da
+    un model_json che puo' essere gia' piatto oppure annidato
+    (feature_sets -> <fs> -> regressors -> <target>). Se annidato con piu'
+    regressori e' un errore: il deploy non saprebbe quale usare."""
+    if "coef" in model_json and "intercept" in model_json:
+        return model_json                       # gia' piatto
+    if "feature_sets" in model_json:
+        fs = model_json["feature_sets"]
+        regressors = fs[next(iter(fs))]["regressors"]
+        if len(regressors) != 1:
+            raise ValueError(
+                f"model.json annidato con piu' regressori {list(regressors)}: "
+                "il deploy non sa quale usare (serve un solo target)."
+            )
+        return next(iter(regressors.values()))
+    raise ValueError(
+        f"Formato model.json non riconosciuto (chiavi={list(model_json.keys())})."
+    )
 
 
 # ============================================================
