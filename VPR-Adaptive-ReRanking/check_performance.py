@@ -101,6 +101,7 @@ def main(args):
     stop_counts = {}   # budget -> quante query
     n_eval = 0
     missing = 0
+    im_adaptive = 0
 
     for q_id in q_ids:
         fp, budget = find_query_file(adaptive_dir, q_id)
@@ -108,6 +109,7 @@ def main(args):
             missing += 1
             continue
         stop_counts[budget] = stop_counts.get(budget, 0) + 1
+        im_adaptive += budget
 
         pred_paths, positives = parse_prediction_txt(preds_dir / f"{q_id}.txt")
         ranking = final_ranking(fp, pred_paths, args.num_preds)
@@ -121,6 +123,16 @@ def main(args):
     for b in sorted(stop_counts):
         c = stop_counts[b]
         print(f"  top-{b:<2}: {c:5d}  ({100*c/n_eval:.1f}%)")
+
+    im_full = n_eval * args.num_preds          # costo del full rerank
+    saving = 100 * (1 - im_adaptive / im_full) if im_full else 0.0
+    avg_im = im_adaptive / n_eval if n_eval else 0.0
+
+    print("\nCosto (image matching):")
+    print(f"  IM adattivi:       {im_adaptive:6d}")
+    print(f"  IM full-rerank:    {im_full:6d}   (= {n_eval} query x {args.num_preds})")
+    print(f"  IM medi per query: {avg_im:.2f}")
+    print(f"  SAVING:            {saving:.1f}%   (IM risparmiati vs full-rerank)")
 
     print("\nRecall:")
     for n in args.recall_values:
