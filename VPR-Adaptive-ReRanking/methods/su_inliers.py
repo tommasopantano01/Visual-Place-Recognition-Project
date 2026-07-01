@@ -101,7 +101,6 @@ def parse_args():
 
 
 def main(args):
-    def main(args):
     model_json = args.model_json or str(
         _VAL_DIR / f"model_su_num_inliers_{args.model}_{args.matcher}.json"
     )
@@ -115,7 +114,6 @@ def main(args):
 
     with open(threshold_json) as f:
         thr = json.load(f)
-
     regressors = model_data["feature_sets"][FEATURE_SET]["regressors"]
     hp = thr["feature_sets"][FEATURE_SET]["criteria"][args.criterion]
     print(f"criterio = {args.criterion}   params = {hp}   [{args.model}/{args.matcher}]")
