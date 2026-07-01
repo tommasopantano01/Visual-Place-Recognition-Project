@@ -13,6 +13,19 @@ Grid-search fedele 1:1 alla Cella 3:
   - tie-break: a parita' di R@1, preferisce rerankare MENO query
   - R@1 in percentuale
 Criteri con regressore mancante nel model.json -> SALTATI (non e' errore).
+
+FORMATI model.json ACCETTATI (via _normalize_model):
+  1) annidato: {"feature_sets": {<fs>: {"feat_cols": [...], "regressors": {...}}}}
+  2) piatto:   {"feat_cols": [...], "scaler_mean": [...], "scaler_scale": [...],
+                "coef": [[...]], "intercept": [...], "classes": [...]}
+     -> avvolto automaticamente come regressore singolo (chiave "help",
+        feat_cols = "num_inliers_top1").
+Il formato di Rocco ("model"/"matchers") NON e' gestito qui: richiede la scelta
+del matcher e va disaccoppiato a monte (un JSON per coppia model+matcher).
+
+L2: la validation pretende la colonna l2_distance nel CSV SOLO se il feature set
+usa SU ("SU" in feat_cols). Per i metodi su num_inliers (es. logistic_help) la
+L2 non e' richiesta.
 """
 
 import os
@@ -32,9 +45,44 @@ from _common import (
 SU_K_DEFAULT     = 10
 SU_ALPHA_DEFAULT = 0.5
 
+# nome della colonna-feature prodotta da load_query_level per i regressori
+# single-feature su num_inliers (usato per avvolgere i model.json piatti)
+FLAT_FEAT_DEFAULT   = "num_inliers_top1"
+FLAT_TARGET_DEFAULT = "help"
+
 # griglie FISSE
 ALPHAS_GRID = np.round(np.arange(0.0, 5.01, 0.1), 2)
 TAUS_GRID   = np.round(np.arange(-1.0, 1.01, 0.01), 2)
+
+
+# ── normalizzazione del model.json ──────────────────────────────────
+
+def _normalize_model(model, default_target=FLAT_TARGET_DEFAULT,
+                     feat_name=FLAT_FEAT_DEFAULT):
+    """Riporta il model.json al formato dell'engine
+    (feature_sets -> <fs> -> {feat_cols, regressors}).
+
+    - gia' annidato (ha 'feature_sets')  -> invariato
+    - piatto (ha 'coef' e 'intercept')   -> avvolto come regressore singolo
+                                            <default_target>, feat_cols=[feat_name]
+    """
+    if "feature_sets" in model:
+        return model
+    if "coef" in model and "intercept" in model:
+        reg = {**model, "feat_cols": [feat_name]}
+        return {
+            "metadata": model.get("metadata", {}),
+            "feature_sets": {
+                feat_name: {
+                    "feat_cols": [feat_name],
+                    "regressors": {default_target: reg},
+                }
+            },
+        }
+    raise ValueError(
+        f"Formato model.json non riconosciuto (chiavi={list(model.keys())}). "
+        "Attesi: 'feature_sets' (annidato) oppure 'coef'+'intercept' (piatto)."
+    )
 
 
 # ── R@1 adattiva + ricerca soglie ───────────────────────────────────
@@ -142,6 +190,7 @@ def validate_and_save(val_dir, model_json_path, val_csv, vpr_model, matcher,
     print(f"Carico regressori (training): {model_json_path}")
     with open(model_json_path) as f:
         model = json.load(f)
+    model = _normalize_model(model)   # accetta anche i model.json piatti
 
     fs_names = list(model["feature_sets"].keys())
     if len(fs_names) != 1:
@@ -151,11 +200,14 @@ def validate_and_save(val_dir, model_json_path, val_csv, vpr_model, matcher,
     feat_cols  = fs["feat_cols"]
     regressors = fs["regressors"]
 
+    # la L2 serve SOLO se il metodo usa SU
+    needs_l2 = "SU" in feat_cols
+
     k     = int(model.get("metadata", {}).get("su_k", SU_K_DEFAULT))
     alpha = float(model.get("metadata", {}).get("su_alpha", SU_ALPHA_DEFAULT))
 
-    print(f"[{feature_set}] VALIDATION da {val_csv}  (feat_cols={feat_cols})")
-    df_va = load_query_level(val_csv, k=k, alpha=alpha)
+    print(f"[{feature_set}] VALIDATION da {val_csv}  (feat_cols={feat_cols}, needs_l2={needs_l2})")
+    df_va = load_query_level(val_csv, k=k, alpha=alpha, needs_l2=needs_l2)
     c0  = df_va["correct_0"].to_numpy(dtype=int)
     c20 = df_va["correct_full_rerank"].to_numpy(dtype=int)
     base_r1 = float(c0.mean() * 100)
