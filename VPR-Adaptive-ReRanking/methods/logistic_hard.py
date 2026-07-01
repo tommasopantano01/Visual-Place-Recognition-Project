@@ -1,16 +1,16 @@
 """
 logistic_hard/logistic_hard.py — Regressione logistica P(hard | num_inliers).
 Un solo regressore, una sola feature. Coefficienti in
-validation/logistic_hard/model.json, soglia di probabilita' in
-validation/logistic_hard/threshold_<model>_<matcher>.csv (entrambi gia'
-calibrati, vedi extension/helps_estimator.py --method logistic --criterion hard).
+validation/logistic_hard/model_<model>_<matcher>.json, soglia di probabilita' in
+validation/logistic_hard/threshold_<model>_<matcher>.csv (entrambi per coppia
+(retrieval, image matching)).
 
-probability > tau -> rerank su top-20 (torch_folder). Altrimenti skip:
-copia il .txt originale (txt_folder).
+probability > tau -> rerank su top-20. Altrimenti skip: salva il .torch del
+solo top-1 (gia' calcolato).
 
 Uso:
-    python VPR-adaptive-re-ranking/logistic_hard/logistic_hard.py \
-        --preds-dir preds/ --model cosplace --matcher superpoint-lg --output-dir out/
+    python VPR-Adaptive-ReRanking/methods/logistic_hard.py \
+        --preds-dir preds/ --model cosplace --matcher loftr --output-dir out/
 """
 import argparse
 import sys
@@ -20,7 +20,6 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from _common import load_threshold_csv, load_model_json, run_logistic_single
 
 _VALIDATION_DIR = Path(__file__).resolve().parent.parent / "validation" / "logistic_hard"
-_MODEL_JSON = _VALIDATION_DIR / "model.json"
 
 
 def parse_args():
@@ -37,11 +36,14 @@ def parse_args():
 
 def main(args):
     threshold_csv = _VALIDATION_DIR / f"threshold_{args.model}_{args.matcher}.csv"
+    model_json    = _VALIDATION_DIR / f"model_{args.model}_{args.matcher}.json"
+
     tau = load_threshold_csv(threshold_csv)["tau"]
-    regressor = load_model_json(_MODEL_JSON)
+    regressor = load_model_json(model_json)   # apply_sigmoid gestisce piatto o annidato
+
     print(f"tau (P_hard) = {tau}  [{args.model}/{args.matcher}]")
     run_logistic_single(args.preds_dir, tau, regressor, args.matcher, args.device,
-                         args.im_size, args.num_preds, args.output_dir)
+                        args.im_size, args.num_preds, args.output_dir)
 
 
 if __name__ == "__main__":
