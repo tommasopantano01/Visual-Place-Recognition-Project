@@ -1,0 +1,190 @@
+{
+  "metadata": {
+    "source_file": "/mnt/data/Copy of cosplace_regressors.json",
+    "source_model": "CosPlace",
+    "matcher": "loftr",
+    "feature_set": "SU+num_inliers",
+    "created_at": "2026-07-01T11:10:25.722565+00:00",
+    "note": "Converted from aggregated matcher-level JSON to methods-compatible model.json format for SU+num_inliers. Includes alias SU+inliers."
+  },
+  "feature_sets": {
+    "SU+num_inliers": {
+      "feat_cols": [
+        "SU",
+        "num_inliers"
+      ],
+      "regressors": {
+        "hard": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.9553844713628535,
+            -325.74703382326896
+          ],
+          "scaler_scale": [
+            0.02302323158611138,
+            252.8051530203215
+          ],
+          "coef": [
+            [
+              1.018375768434433,
+              7.592747990410581
+            ]
+          ],
+          "intercept": [
+            -7.559848932411707
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "help": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.9553844713628535,
+            -325.74703382326896
+          ],
+          "scaler_scale": [
+            0.02302323158611138,
+            252.8051530203215
+          ],
+          "coef": [
+            [
+              0.6111086444924901,
+              7.816260401458294
+            ]
+          ],
+          "intercept": [
+            -7.629069300225927
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "hurts": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.9553844713628535,
+            -325.74703382326896
+          ],
+          "scaler_scale": [
+            0.02302323158611138,
+            252.8051530203215
+          ],
+          "coef": [
+            [
+              1.5804286025192105,
+              3.0686756103853803
+            ]
+          ],
+          "intercept": [
+            -3.152236638217814
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        }
+      }
+    },
+    "SU+inliers": {
+      "feat_cols": [
+        "SU",
+        "num_inliers"
+      ],
+      "regressors": {
+        "hard": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.9553844713628535,
+            -325.74703382326896
+          ],
+          "scaler_scale": [
+            0.02302323158611138,
+            252.8051530203215
+          ],
+          "coef": [
+            [
+              1.018375768434433,
+              7.592747990410581
+            ]
+          ],
+          "intercept": [
+            -7.559848932411707
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "help": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.9553844713628535,
+            -325.74703382326896
+          ],
+          "scaler_scale": [
+            0.02302323158611138,
+            252.8051530203215
+          ],
+          "coef": [
+            [
+              0.6111086444924901,
+              7.816260401458294
+            ]
+          ],
+          "intercept": [
+            -7.629069300225927
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "hurts": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.9553844713628535,
+            -325.74703382326896
+          ],
+          "scaler_scale": [
+            0.02302323158611138,
+            252.8051530203215
+          ],
+          "coef": [
+            [
+              1.5804286025192105,
+              3.0686756103853803
+            ]
+          ],
+          "intercept": [
+            -3.152236638217814
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        }
+      }
+    }
+  }
+}

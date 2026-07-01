@@ -1,0 +1,190 @@
+{
+  "metadata": {
+    "source_file": "/mnt/data/Copy of megaloc_regressors.json",
+    "source_model": "MegaLoc",
+    "matcher": "loftr",
+    "feature_set": "SU+num_inliers",
+    "created_at": "2026-07-01T11:10:25.724907+00:00",
+    "note": "Converted from aggregated matcher-level JSON to methods-compatible model.json format for SU+num_inliers. Includes alias SU+inliers."
+  },
+  "feature_sets": {
+    "SU+num_inliers": {
+      "feat_cols": [
+        "SU",
+        "num_inliers"
+      ],
+      "regressors": {
+        "hard": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.797390731368547,
+            -329.397644767133
+          ],
+          "scaler_scale": [
+            0.07798576737513789,
+            250.28565815130298
+          ],
+          "coef": [
+            [
+              2.2569279196187804,
+              4.480772508636258
+            ]
+          ],
+          "intercept": [
+            -6.942362101850816
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "help": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.797390731368547,
+            -329.397644767133
+          ],
+          "scaler_scale": [
+            0.07798576737513789,
+            250.28565815130298
+          ],
+          "coef": [
+            [
+              1.2207887485813733,
+              7.558908559044846
+            ]
+          ],
+          "intercept": [
+            -8.649344264304041
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "hurts": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.797390731368547,
+            -329.397644767133
+          ],
+          "scaler_scale": [
+            0.07798576737513789,
+            250.28565815130298
+          ],
+          "coef": [
+            [
+              2.1062789114535225,
+              2.4471262613132794
+            ]
+          ],
+          "intercept": [
+            -4.027899671741371
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        }
+      }
+    },
+    "SU+inliers": {
+      "feat_cols": [
+        "SU",
+        "num_inliers"
+      ],
+      "regressors": {
+        "hard": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.797390731368547,
+            -329.397644767133
+          ],
+          "scaler_scale": [
+            0.07798576737513789,
+            250.28565815130298
+          ],
+          "coef": [
+            [
+              2.2569279196187804,
+              4.480772508636258
+            ]
+          ],
+          "intercept": [
+            -6.942362101850816
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "help": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.797390731368547,
+            -329.397644767133
+          ],
+          "scaler_scale": [
+            0.07798576737513789,
+            250.28565815130298
+          ],
+          "coef": [
+            [
+              1.2207887485813733,
+              7.558908559044846
+            ]
+          ],
+          "intercept": [
+            -8.649344264304041
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "hurts": {
+          "feat_cols": [
+            "SU",
+            "num_inliers"
+          ],
+          "scaler_mean": [
+            0.797390731368547,
+            -329.397644767133
+          ],
+          "scaler_scale": [
+            0.07798576737513789,
+            250.28565815130298
+          ],
+          "coef": [
+            [
+              2.1062789114535225,
+              2.4471262613132794
+            ]
+          ],
+          "intercept": [
+            -4.027899671741371
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        }
+      }
+    }
+  }
+}
