@@ -1,0 +1,42 @@
+{
+  "metadata": {
+    "target": "hard",
+    "feature_source": "num_inliers_top1",
+    "vpr_model": "megaloc",
+    "matcher": "superpoint-lg",
+    "source_file": "logreg_p_hard_given_num_inliers_top1_megaloc_svox_train_sp-lg.json",
+    "note": "Wrapped from flat logistic-regression JSON for validation/logistic_hard."
+  },
+  "feature_sets": {
+    "num_inliers_top1": {
+      "feat_cols": [
+        "num_inliers_top1"
+      ],
+      "regressors": {
+        "hard": {
+          "feat_cols": [
+            "num_inliers_top1"
+          ],
+          "scaler_mean": [
+            155.78955316691835
+          ],
+          "scaler_scale": [
+            97.1247371851451
+          ],
+          "coef": [
+            [
+              -5.812286574109924
+            ]
+          ],
+          "intercept": [
+            -5.739874334769469
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        }
+      }
+    }
+  }
+}
