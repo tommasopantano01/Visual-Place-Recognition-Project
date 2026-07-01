@@ -18,8 +18,10 @@ FORMATI model.json ACCETTATI (via _normalize_model):
   1) annidato: {"feature_sets": {<fs>: {"feat_cols": [...], "regressors": {...}}}}
   2) piatto:   {"feat_cols": [...], "scaler_mean": [...], "scaler_scale": [...],
                 "coef": [[...]], "intercept": [...], "classes": [...]}
-     -> avvolto automaticamente come regressore singolo (chiave "help",
-        feat_cols = "num_inliers_top1").
+     -> avvolto automaticamente come regressore singolo. La CHIAVE con cui viene
+        avvolto ('hard'/'help'/'hurts') e' dedotta dal criterio richiesto dal
+        metodo chiamante (vedi _target_from_criteria): logistic_hard passa
+        criteria=('P(hard)',) -> chiave 'hard'; logistic_help -> 'help'.
 Il formato di Rocco ("model"/"matchers") NON e' gestito qui: richiede la scelta
 del matcher e va disaccoppiato a monte (un JSON per coppia model+matcher).
 
@@ -50,12 +52,28 @@ SU_ALPHA_DEFAULT = 0.5
 FLAT_FEAT_DEFAULT   = "num_inliers_top1"
 FLAT_TARGET_DEFAULT = "help"
 
+# mappa criterio -> chiave del regressore (target) per avvolgere i file piatti
+CRIT_TO_TARGET = {
+    "P(hard)":            "hard",
+    "P(help)":            "help",
+    "P(help)-aP(hurts)":  "help",
+}
+
 # griglie FISSE
 ALPHAS_GRID = np.round(np.arange(0.0, 5.01, 0.1), 2)
 TAUS_GRID   = np.round(np.arange(-1.0, 1.01, 0.01), 2)
 
 
 # ── normalizzazione del model.json ──────────────────────────────────
+
+def _target_from_criteria(criteria):
+    """Deduce sotto quale chiave avvolgere un regressore piatto, in base al
+    criterio richiesto. Con un solo criterio noto -> chiave corrispondente
+    (P(hard)->hard, P(help)->help). Altrimenti fallback 'help'."""
+    if len(criteria) == 1:
+        return CRIT_TO_TARGET.get(criteria[0], FLAT_TARGET_DEFAULT)
+    return FLAT_TARGET_DEFAULT
+
 
 def _normalize_model(model, default_target=FLAT_TARGET_DEFAULT,
                      feat_name=FLAT_FEAT_DEFAULT):
@@ -184,13 +202,18 @@ def validate_and_save(val_dir, model_json_path, val_csv, vpr_model, matcher,
     NON allena. vpr_model/matcher identificano la coppia (retrieval, image
     matching) su cui e' stata calibrata questa soglia.
     criteria/taus/alphas: configurabili dal metodo chiamante (SU usa i default;
-    logistic_help passa criteria=('P(help)',) e taus in [0,1])."""
+    logistic_help passa criteria=('P(help)',) e taus in [0,1];
+    logistic_hard passa criteria=('P(hard)',))."""
     os.makedirs(val_dir, exist_ok=True)
 
     print(f"Carico regressori (training): {model_json_path}")
     with open(model_json_path) as f:
         model = json.load(f)
-    model = _normalize_model(model)   # accetta anche i model.json piatti
+    # Se il file e' piatto, va avvolto sotto la chiave giusta in base al
+    # criterio richiesto: P(hard)->'hard', P(help)->'help'. Cosi' logistic_hard
+    # trova il regressore 'hard' e non lo salta.
+    target = _target_from_criteria(criteria)
+    model = _normalize_model(model, default_target=target)
 
     fs_names = list(model["feature_sets"].keys())
     if len(fs_names) != 1:
