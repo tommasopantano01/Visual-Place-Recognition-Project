@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from _common import load_threshold_csv, run_scalar_method
 
-_THRESHOLD_CSV = Path(__file__).parent / "threshold.csv"
+_THRESHOLD_CSV = Path(__file__).parent / youden / "threshold.csv"
 
 
 def parse_args():
