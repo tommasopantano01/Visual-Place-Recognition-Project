@@ -32,6 +32,9 @@ def parse_args():
     p.add_argument("--val-csv", required=True, help="candidate-level CSV di validation (file o dir)")
     p.add_argument("--out-dir", default=str(_HERE), help="dove scrivere gli output (default: methods folder)")
     p.add_argument("--top-k", type=int, default=20)
+    p.add_argument("--model", required=True, help="cosplace or megaloc")
+    p.add_argument("--model", required=True, help="superpoint-lg or loftr")
+  
     return p.parse_args()
 
 
