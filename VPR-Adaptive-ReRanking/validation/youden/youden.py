@@ -30,7 +30,7 @@ from _sweep import sweep_from_candidate, select_youden_threshold, save_outputs
 def parse_args():
     p = argparse.ArgumentParser(description="Validation — youden (soglia su num_inliers_top1)")
     p.add_argument("--val-csv", required=True, help="candidate-level CSV di validation (file o dir)")
-    p.add_argument("--out-dir", default='VPR-Adaptive-ReRanking/methods/youden/', help="dove scrivere gli output (default: methods folder)")
+    p.add_argument("--out-dir", default=str(HERE), help="dove scrivere gli output (default: methods folder)")
     p.add_argument("--top-k", type=int, default=20)
     return p.parse_args()
 
