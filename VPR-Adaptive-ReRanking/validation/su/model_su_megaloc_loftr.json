@@ -1,0 +1,88 @@
+{
+  "metadata": {
+    "source_file": "/mnt/data/Copy of megaloc_regressors.json",
+    "source_model": "MegaLoc",
+    "matcher": "loftr",
+    "feature_set": "SU",
+    "created_at": "2026-07-01T11:06:06.413555+00:00",
+    "note": "Converted from aggregated matcher-level JSON to methods/su.py-compatible model.json format."
+  },
+  "feature_sets": {
+    "SU": {
+      "feat_cols": [
+        "SU"
+      ],
+      "regressors": {
+        "hard": {
+          "feat_cols": [
+            "SU"
+          ],
+          "scaler_mean": [
+            0.797390731368547
+          ],
+          "scaler_scale": [
+            0.077985767375138
+          ],
+          "coef": [
+            [
+              3.223165997745731
+            ]
+          ],
+          "intercept": [
+            -4.09117882024818
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "help": {
+          "feat_cols": [
+            "SU"
+          ],
+          "scaler_mean": [
+            0.797390731368547
+          ],
+          "scaler_scale": [
+            0.077985767375138
+          ],
+          "coef": [
+            [
+              2.602158393095286
+            ]
+          ],
+          "intercept": [
+            -3.019361244843395
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        },
+        "hurts": {
+          "feat_cols": [
+            "SU"
+          ],
+          "scaler_mean": [
+            0.797390731368547
+          ],
+          "scaler_scale": [
+            0.077985767375138
+          ],
+          "coef": [
+            [
+              2.631445646477307
+            ]
+          ],
+          "intercept": [
+            -2.509968579297788
+          ],
+          "classes": [
+            0,
+            1
+          ]
+        }
+      }
+    }
+  }
+}
