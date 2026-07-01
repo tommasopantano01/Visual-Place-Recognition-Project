@@ -365,9 +365,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 
-# colonne richieste nel CSV candidate-level (vedi training/candidate_level/master.csv)
-SU_REQUIRED_COLS = ["query_id", "l2_distance", "retrieval_rank",
-                    "num_inliers", "is_positive", "rerank_rank_topK"]
+# Colonne richieste nel CSV candidate-level.
+#   BASE_REQUIRED_COLS: feature + label necessarie a CHIUNQUE.
+#   SU_REQUIRED_COLS:   in piu' la l2_distance, richiesta SOLO da chi usa SU
+#                       (metodi su/ e su_inliers/). Vedi load_query_level(needs_l2).
+BASE_REQUIRED_COLS = ["query_id", "retrieval_rank",
+                      "num_inliers", "is_positive", "rerank_rank_topK"]
+SU_REQUIRED_COLS   = BASE_REQUIRED_COLS + ["l2_distance"]
 
 # i tre target/criteri del notebook di calibrazione
 SU_TARGETS  = ("hard", "help", "hurts")
@@ -376,12 +380,17 @@ SU_CRITERIA = ("P(hard)", "P(help)", "P(help)-aP(hurts)")
 
 # --- LOADER: CSV candidate-level -> DataFrame a livello query + label -------
 
-def load_query_level(csv_dir_or_file, k=10, alpha=0.5):
+def load_query_level(csv_dir_or_file, k=10, alpha=0.5, needs_l2=True):
     """Legge uno o piu' CSV candidate-level (dir o file singolo), collassa al
     livello query e calcola SU (via l2_to_su), inliers (negato) e le label
     hard/helps/hurts. Usato da training (per X,y) e validation (per X + correct_*).
 
-    Colonne ritornate: query_id_full, source_file, SU, inliers,
+    needs_l2: se True (default) la colonna l2_distance e' OBBLIGATORIA (serve a
+    calcolare SU: metodi su/ e su_inliers/). Se False (metodi che NON usano SU,
+    es. logistic_help/logistic_hard/youden/...) la L2 non e' richiesta: se manca
+    viene riempita con NaN e la colonna SU risulta NaN (non usata da quei metodi).
+
+    Colonne ritornate: query_id_full, source_file, SU, inliers, num_inliers_top1,
       correct_0, correct_full_rerank, hard, helps, hurts
     """
     if os.path.isdir(csv_dir_or_file):
@@ -391,13 +400,20 @@ def load_query_level(csv_dir_or_file, k=10, alpha=0.5):
     if not files:
         raise FileNotFoundError(f"Nessun CSV trovato in {csv_dir_or_file}")
 
+    req = SU_REQUIRED_COLS if needs_l2 else BASE_REQUIRED_COLS
+
     rows = []
     for fp in files:
         stem = os.path.splitext(os.path.basename(fp))[0]
         df = pd.read_csv(fp)
-        missing = [c for c in SU_REQUIRED_COLS if c not in df.columns]
+        missing = [c for c in req if c not in df.columns]
         if missing:
             raise ValueError(f"{fp}: colonne mancanti {missing}")
+
+        # l2_distance opzionale quando SU non serve: placeholder NaN cosi' il
+        # resto (num_inliers_top1, correct_*) si calcola comunque.
+        if "l2_distance" not in df.columns:
+            df["l2_distance"] = np.nan
 
         for qid, g in df.groupby("query_id", sort=False):
             g = g.sort_values("retrieval_rank")
@@ -405,7 +421,8 @@ def load_query_level(csv_dir_or_file, k=10, alpha=0.5):
                 continue  # SU non calcolabile
 
             l2 = g["l2_distance"].to_numpy(dtype=float)
-            su = l2_to_su(l2, k=k, alpha=alpha)   # riusa la funzione sopra
+            # SU solo se la L2 c'e' davvero; altrimenti NaN (metodi non-SU).
+            su = float("nan") if np.isnan(l2).all() else l2_to_su(l2, k=k, alpha=alpha)
 
             top1 = g.iloc[0]
             rr_win = g.loc[g["rerank_rank_topK"] == 1]
