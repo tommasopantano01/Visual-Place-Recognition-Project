@@ -111,7 +111,7 @@ def parse_args():
     p.add_argument("--num-preds",  type=int, default=20, help="candidati per il matching totale")
     p.add_argument("--su-k",       type=int, default=10)
     p.add_argument("--su-alpha",   type=float, default=0.5)
-    p.add_argument("--criterion",  default="P(help)-aP(hurts)", choices=VALID_CRITERIA)
+    p.add_argument("--criterion",  default="P(help)", choices=VALID_CRITERIA)
     p.add_argument("--output-dir", required=True)
     p.add_argument("--model-json", default=str(_MODEL_JSON))
     p.add_argument("--threshold-json", default=None,
