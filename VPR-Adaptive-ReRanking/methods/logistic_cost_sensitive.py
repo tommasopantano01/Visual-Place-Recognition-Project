@@ -24,7 +24,6 @@ from _common import (
 )
 
 _VALIDATION_DIR = Path(__file__).resolve().parent.parent / "validation" / "logistic_cost_sensitive"
-_MODEL_JSON = _VALIDATION_DIR / "model.json"
 
 
 def parse_args():
@@ -44,7 +43,7 @@ def main(args):
     hp     = load_threshold_csv(threshold_csv)
     lam    = hp["alpha"]
     tau    = hp["tau"]
-    models = load_model_json(_MODEL_JSON)   # {"help": {...}, "hurt": {...}}
+    models = load_model_json(_VALIDATION_DIR / f"model_logistic_cost_sensitive_{args.model}_{args.matcher}.json")   # {"help": {...}, "hurt": {...}}
     print(f"lambda = {lam}   tau = {tau}   [{args.model}/{args.matcher}]")
 
     results_top1 = run_im_top1_with_results(args.preds_dir, args.matcher, args.device, args.im_size)
