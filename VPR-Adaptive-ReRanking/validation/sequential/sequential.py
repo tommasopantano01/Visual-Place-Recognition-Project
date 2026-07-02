@@ -15,7 +15,7 @@ Ogni JSON ha il formato di regressor_to_dict (_common): feat_cols anonime
 ("feature_0"...), scaler_mean/scale, coef, intercept, classes. Le feature sono
 passate POSIZIONALMENTE nell'ordine esatto sotto (i nomi nel JSON sono anonimi).
 
-FEATURE — ordine ESATTO del notebook (verificato sugli scaler dei JSON reali):
+FEATURE :
   gate1  (1):  [num_inliers_top1]
   gate5  (6):  [num_inliers_top1, max_inliers_top5, second_max_inliers_top5,
                 gap_inliers_top5, best_retrieval_rank_top5, top1_is_best_top5]
@@ -26,7 +26,7 @@ FEATURE — ordine ESATTO del notebook (verificato sugli scaler dei JSON reali):
   NB asimmetria: gate10 NON include second_max_inliers_top5 (solo gap per top5),
   ma include second_max_inliers_top10. Fedele al notebook.
 
-TARGET (solo per diagnostica; il training e' altrove):
+TARGET:
   gate1:  helps_20   = (correct_0==0) & (correct_20==1)
   gate5:  continue_5 = (correct_5==0) & (max(correct_10,correct_20)==1)
   gate10: continue_10= (correct_10==0) & (correct_20==1)
