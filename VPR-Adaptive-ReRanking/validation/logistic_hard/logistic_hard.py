@@ -11,10 +11,8 @@ sys.path.append(str(_HERE.parent.parent))     # VPR-Adaptive-ReRanking/  (per _c
 from _su_validation import validate_and_save
 
 
-# P(hard) e' una probabilita', quindi tau in [0,1]
 TAUS_GRID_PROB = np.round(np.arange(0.0, 1.001, 0.01), 2)
 
-# Un solo criterio, come logistic_help
 CRITERIA = ("P(hard)",)
 
 _DEFAULT_MODEL = _HERE.parent.parent / "training" / "logistic_hard" / "model.json"
