@@ -1,14 +1,3 @@
-"""
-youden/youden.py — Applica la threshold gia' calibrata in
-validation/youden/threshold_<model>_<matcher>.csv.
-
-Soglia: num_inliers(top-1) < threshold -> rerank su top-20 (torch_folder).
-Altrimenti skip: copia il .txt originale del retrieval (txt_folder).
-
-Uso:
-    python VPR-adaptive-re-ranking/youden/youden.py \
-        --preds-dir preds/ --model cosplace --matcher superpoint-lg --output-dir out/
-"""
 import argparse
 import sys
 from pathlib import Path
