@@ -1,18 +1,9 @@
-#!/usr/bin/env python3
 """
 Build a candidate-level CSV from pre-IM prediction .txt files, post-IM .torch files and Z_data.torch from retrieval.
 
 Base output columns:
     query_id,candidate_path,l2_distance,retrieval_rank,num_inliers,rerank_rank_topK,is_positive,K
 
-Example usage in Colab:
-
-python build_candidate_level_csv.py \
-  --preds_dir "/content/drive/MyDrive/VPR/logs/Cosplace_sf_xs_test_retrival/preds" \
-  --match_dir "/content/drive/MyDrive/VPR/logs/Cosplace_sf_xs_test_retrival/preds_loftr" \
-  --z_data_path "/content/drive/MyDrive/VPR/logs/Cosplace_sf_xs_test_retrival/z_data.torch" \
-  --output_csv "/content/drive/MyDrive/VPR/TOP20/Cosplace/TEST/candidate_level_cosplace_sf_xs_loftr.csv" \
-  --k 20
 """
 
 from __future__ import annotations
