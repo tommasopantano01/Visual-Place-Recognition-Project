@@ -1,21 +1,3 @@
-"""
-validation/su — SOLA VALIDATION del metodo SU (feature set ['SU']).
-
-NON allena. Legge il model.json gia' prodotto dal training
-(training/su/model.json di default) e cerca le soglie ottime sul dataset di
-VALIDATION indicato dall'utente con --val-csv. Scrive
-threshold_<model>_<matcher>.csv qui. --model/--matcher identificano la coppia
-(retrieval, image matching) su cui e' calibrata la soglia.
-
-Uso:
-    python VPR-Adaptive-ReRanking/validation/su/su.py \
-        --val-csv <dir-o-file.csv> --model cosplace --matcher superpoint-lg
-
-    # model.json in una posizione non standard:
-    python VPR-Adaptive-ReRanking/validation/su/su.py \
-        --val-csv <...> --model-json <path/model.json> \
-        --model cosplace --matcher superpoint-lg
-"""
 import argparse
 import sys
 from pathlib import Path
@@ -25,7 +7,6 @@ sys.path.append(str(_HERE.parent))            # validation/  (per _su_validation
 sys.path.append(str(_HERE.parent.parent))     # VPR-Adaptive-ReRanking/  (per _common)
 from _su_validation import validate_and_save
 
-# model.json prodotto dal training, posizione di default
 _DEFAULT_MODEL = _HERE.parent.parent / "training" / "su" / "model.json"
 
 
