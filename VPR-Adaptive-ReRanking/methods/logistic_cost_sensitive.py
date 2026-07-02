@@ -1,17 +1,3 @@
-"""
-logistic_cost_sensitive/logistic_cost_sensitive.py — Utility-based logistic
-policy: S = P(help|inliers) - lambda*P(hurt|inliers). Due regressori distinti
-nello stesso validation/logistic_cost_sensitive/model.json {"help": {...}, "hurt": {...}},
-lambda e tau gia' calibrati in
-validation/logistic_cost_sensitive/threshold_<model>_<matcher>.csv.
-
-S > tau -> rerank su top-20 (top20/). Altrimenti skip -> top1/ (.torch del
-solo top-1, gia' calcolato).
-
-Uso:
-    python VPR-adaptive-re-ranking/logistic_cost_sensitive/logistic_cost_sensitive.py \
-        --preds-dir preds/ --model cosplace --matcher superpoint-lg --output-dir out/
-"""
 import argparse
 import sys
 from pathlib import Path
