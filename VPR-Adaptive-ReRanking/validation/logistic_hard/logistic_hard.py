@@ -1,28 +1,3 @@
-"""
-validation/logistic_hard - SOLA VALIDATION del metodo logistic_hard.
-
-Modella P(hard | num_inliers_top1) con un regressore logistico allenato a parte
-nel training e cerca la soglia tau che massimizza la R@1 adattiva.
-
-Policy:
-    rerank se P(hard) > tau
-
-Gemello di validation/logistic_help/logistic_help.py, ma usa modelli allenati
-con target hard invece che help.
-
-NON allena: legge il model.json gia' prodotto dal training.
-Scrive threshold_<model>_<matcher>.csv nella cartella di output.
-
-Il model.json deve avere un regressore 'hard' con feat_cols=['num_inliers_top1'].
-
-Uso:
-    python VPR-Adaptive-ReRanking/validation/logistic_hard/logistic_hard.py \
-        --val-csv <dir-o-file.csv> \
-        --model-json <training/logistic_hard/model.json> \
-        --model cosplace \
-        --matcher superpoint-lg
-"""
-
 import argparse
 import sys
 from pathlib import Path
