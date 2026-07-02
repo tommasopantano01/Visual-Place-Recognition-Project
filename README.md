@@ -12,7 +12,7 @@ The following commands are meant to be run locally. If you plan to use Colab, up
 > Some models require code implementation. You should identify which models require them, where they should be implemented, and then implement them.
 ## Install the repo
 ```sh
-git clone --recursive https://github.com/FarInHeight/Visual-Place-Recognition-Project.git
+git clone --recursive https://github.com/tommasopantano01/Visual-Place-Recognition-Project/
 ```
 ## Install dependencies
 ```sh
