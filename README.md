@@ -1,5 +1,5 @@
 # Visual Place Recognition project
-This repository provides a starting code for the **Visual Place Recognition** project of the Advanced Machine Learning / Data analysis and Artificial Intelligence Course.
+This repository provides a starting code for the **Visual Place Recognition** project of ML course.
 The following commands are meant to be run locally. If you plan to use Colab, upload the notebook [start_your_project.ipynb](./start_your_project.ipynb) and start from there.
 > [!NOTE]  
 > ### About datasets format
