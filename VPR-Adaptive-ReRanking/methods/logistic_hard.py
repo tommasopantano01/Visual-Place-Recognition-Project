@@ -1,17 +1,3 @@
-"""
-logistic_hard/logistic_hard.py — Regressione logistica P(hard | num_inliers).
-Un solo regressore, una sola feature. Coefficienti in
-validation/logistic_hard/model_<model>_<matcher>.json, soglia di probabilita' in
-validation/logistic_hard/threshold_<model>_<matcher>.csv (entrambi per coppia
-(retrieval, image matching)).
-
-probability > tau -> rerank su top-20. Altrimenti skip: salva il .torch del
-solo top-1 (gia' calcolato).
-
-Uso:
-    python VPR-Adaptive-ReRanking/methods/logistic_hard.py \
-        --preds-dir preds/ --model cosplace --matcher loftr --output-dir out/
-"""
 import argparse
 import sys
 from pathlib import Path
