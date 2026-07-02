@@ -1,14 +1,3 @@
-"""
-validation/su_inliers — SOLA VALIDATION del metodo SU+inliers (['SU','inliers']).
-
-NON allena. Legge training/su_inliers/model.json (default) e cerca le soglie sul
-dataset di VALIDATION indicato con --val-csv. Scrive
-threshold_<model>_<matcher>.csv qui.
-
-Uso:
-    python VPR-Adaptive-ReRanking/validation/su_inliers/su_inliers.py \
-        --val-csv <dir-o-file.csv> --model cosplace --matcher superpoint-lg
-"""
 import argparse
 import sys
 from pathlib import Path
