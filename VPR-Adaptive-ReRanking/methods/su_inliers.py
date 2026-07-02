@@ -99,7 +99,7 @@ def main(args):
     hp = thr["feature_sets"][FEATURE_SET]["criteria"][args.criterion]
     print(f"criterio = {args.criterion}   params = {hp}   [{args.model}/{args.matcher}]")
 
-    # 1. matching top-1 su tutte le query (feature) — via script del prof
+    # 1. matching top-1 su tutte le query (feature)
     top1_dir = Path(args.output_dir) / "_match_top1"
     run_matcher_top1_all(args.preds_dir, top1_dir, args.matcher, args.device, args.im_size)
 
@@ -122,7 +122,6 @@ def main(args):
     skip_ids   = [q for q, s in zip(ids, score) if s <= tau]
     print_summary(rerank_ids, skip_ids)
 
-    # 3-4. cartella temp incerte + matching totale via script del prof
     tmp_dir = Path(args.output_dir) / "_tmp_rerank_su_inliers"
     n = write_filtered_preds(rerank_ids, args.preds_dir, tmp_dir)
     print(f"[su_inliers] {n} query incerte copiate in {tmp_dir}")
