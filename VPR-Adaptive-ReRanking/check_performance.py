@@ -1,23 +1,5 @@
-#!/usr/bin/env python3
 """
 check_performance.py — Statistiche finali su un output di adaptive reranking.
-
-Per ogni query legge dove si e' fermata (cartella topK in --adaptive-RR-dir),
-ricostruisce il ranking finale e calcola recall@N.
-
-Ranking finale per query:
-  - file .torch (k risultati IM): ordina i primi k candidati per num_inliers
-    desc (tie-break: ordine di retrieval), poi accoda i restanti candidati
-    nell'ordine di retrieval (coda non rerankata);
-  - file .txt (skip senza IM, es. su/): ordine di retrieval puro.
-
-recall@N: 1 se almeno un candidato positivo nei primi N del ranking finale.
-
-Uso:
-    python VPR-Adaptive-ReRanking/check_performance.py \
-        --preds-dir       <preds folder> \
-        --adaptive-RR-dir <output del reranking adattivo> \
-        --num-preds 20 --recall-values 1 5 10 20
 """
 
 import argparse
