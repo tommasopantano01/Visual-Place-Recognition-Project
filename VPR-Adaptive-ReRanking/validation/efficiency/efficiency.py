@@ -1,24 +1,3 @@
-"""
-validation/efficiency — SOLA VALIDATION: sceglie la soglia hard su
-num_inliers_top1 piu' EFFICIENTE che trattiene >= 95% del guadagno di R@1 del
-miglior adattivo (target = pre_r1 + 0.95*(best_adaptive_r1 - pre_r1)), poi
-saving massimo. best_adaptive_r1 e' il passo interno (= R@1 di best_r1).
-NON allena.
-
-Catena: --val-csv (candidate-level) -> sweep (_sweep) -> selettore eff95 ->
-threshold.csv. Niente l2_distance, niente model.json.
-
-OUTPUT in --out-dir (default: questa cartella):
-  threshold_<model>_<matcher>.csv   numerico (threshold, r1_adaptive_pct,
-                  saving_pct), letto dal deploy via load_threshold_csv -> ["threshold"].
-  sweep.csv / selection.csv   per il report.
-
---retention cambia la frazione trattenuta (default 0.95).
-
-Uso:
-    python VPR-Adaptive-ReRanking/validation/efficiency/efficiency.py --val-csv <dir-o-file.csv> \
-        --model cosplace --matcher superpoint-lg
-"""
 import argparse
 import sys
 from pathlib import Path
