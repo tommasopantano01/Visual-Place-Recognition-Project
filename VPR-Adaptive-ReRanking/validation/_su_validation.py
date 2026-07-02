@@ -6,13 +6,13 @@ training/) e cerca, sul dataset di validation indicato dall'utente, le soglie
 ottime per ciascun criterio massimizzando la R@1 adattiva.
 
 Le funzioni base (load_query_level, regressor_from_dict, predict_proba_pos,
-clean_scores, costanti) vivono in _common.py, blocco "AGGIUNTE SU".
+clean_scores, costanti) vivono in _common.py.
 
-Grid-search fedele 1:1 alla Cella 3:
+Grid-search:
   - griglie FISSE: tau in [-1,1] passo 0.01, alpha in [0,5] passo 0.1
   - tie-break: a parita' di R@1, preferisce rerankare MENO query
   - R@1 in percentuale
-Criteri con regressore mancante nel model.json -> SALTATI (non e' errore).
+Criteri con regressore mancante nel model.json -> SKIP.
 
 FORMATI model.json ACCETTATI (via _normalize_model):
   1) annidato: {"feature_sets": {<fs>: {"feat_cols": [...], "regressors": {...}}}}
@@ -22,8 +22,8 @@ FORMATI model.json ACCETTATI (via _normalize_model):
         avvolto ('hard'/'help'/'hurts') e' dedotta dal criterio richiesto dal
         metodo chiamante (vedi _target_from_criteria): logistic_hard passa
         criteria=('P(hard)',) -> chiave 'hard'; logistic_help -> 'help'.
-Il formato di Rocco ("model"/"matchers") NON e' gestito qui: richiede la scelta
-del matcher e va disaccoppiato a monte (un JSON per coppia model+matcher).
+Formati con un JSON per coppia model+matcher (dipendenti dalla scelta del
+matcher) non sono gestiti qui e vanno disaccoppiati a monte.
 
 L2: la validation pretende la colonna l2_distance nel CSV SOLO se il feature set
 usa SU ("SU" in feat_cols). Per i metodi su num_inliers (es. logistic_help) la
@@ -145,7 +145,7 @@ def select_alpha_tau_r1(p_help, p_hurts, c0, c20,
 def grid_search_criteria(df_val, regressors, feat_cols, criteria=SU_CRITERIA,
                           taus=TAUS_GRID, alphas=ALPHAS_GRID):
     """Per ciascun criterio trova i parametri ottimi sulla validation.
-    Salta i criteri che richiedono un regressore assente (come Cella 3).
+    Salta i criteri che richiedono un regressore assente.
     taus/alphas: griglie di ricerca (SU usa [-1,1]; i metodi su P pura [0,1])."""
     X = df_val[feat_cols].to_numpy(dtype=float)
     c0  = df_val["correct_0"].to_numpy(dtype=int)
