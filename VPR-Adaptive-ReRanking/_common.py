@@ -577,3 +577,69 @@ def clean_scores(scores):
         posinf=np.max(scores[finite]) if np.any(finite) else fv,
         neginf=np.min(scores[finite]) if np.any(finite) else fv,
     )
+
+
+# ████████████████████████████████████████████████████████████████████
+# FEATURE PROGRESSIVE SEQUENTIAL (deploy) — costruite live dai risultati IM
+# accumulati, IDENTICHE a progressive_features_for_group del notebook.
+# accumulated[q] = lista di risultati IM dei candidati con retrieval_rank
+# 1..len, IN ORDINE di retrieval_rank (indice i -> retrieval_rank i+1).
+# ████████████████████████████████████████████████████████████████████
+
+def _progressive_feats_from_results(results_upto_b):
+    """results_upto_b: lista di risultati IM dei candidati con retrieval_rank<=b,
+    in ordine di rank. Ritorna (max_inliers, second_max, gap, best_rank,
+    top1_is_best) con la STESSA logica del notebook: ordina per num_inliers desc,
+    tie su retrieval_rank asc."""
+    # (num_inliers, retrieval_rank) con rank = indice+1
+    items = [(float(r["num_inliers"]), i + 1) for i, r in enumerate(results_upto_b)]
+    items.sort(key=lambda t: (-t[0], t[1]))     # num_inliers desc, rank asc
+    max_inl, best_rank = items[0]
+    second_max = items[1][0] if len(items) >= 2 else 0.0
+    gap = max_inl - second_max
+    return max_inl, second_max, gap, int(best_rank), int(best_rank == 1)
+
+
+def sequential_features(accumulated_q, gate):
+    """Costruisce il vettore feature per il gate ('gate1'|'gate5'|'gate10') dai
+    risultati IM accumulati per una query, nell'ORDINE ESATTO del notebook.
+    accumulated_q: lista risultati IM (rank 1..N visti finora).
+    Ritorna una lista di float (ordine posizionale = feat_cols del model.json)."""
+    num_inliers_top1 = float(accumulated_q[0]["num_inliers"])
+    if gate == "gate1":
+        return [num_inliers_top1]
+
+    # feature del blocco top5 (primi 5 candidati visti)
+    up5 = accumulated_q[:5]
+    max5, second5, gap5, brank5, isbest5 = _progressive_feats_from_results(up5)
+
+    if gate == "gate5":
+        # [num_inliers_top1, max_top5, second_max_top5, gap_top5, best_rank_top5, top1_is_best_top5]
+        return [num_inliers_top1, max5, second5, gap5, float(brank5), float(isbest5)]
+
+    if gate == "gate10":
+        up10 = accumulated_q[:10]
+        max10, second10, gap10, brank10, isbest10 = _progressive_feats_from_results(up10)
+        # NB asimmetria notebook: per il blocco top5 NON c'e' second_max, solo gap.
+        # [num_inliers_top1, max_top5, gap_top5, best_rank_top5, top1_is_best_top5,
+        #  max_top10, second_max_top10, gap_top10, best_rank_top10, top1_is_best_top10]
+        return [num_inliers_top1, max5, gap5, float(brank5), float(isbest5),
+                max10, second10, gap10, float(brank10), float(isbest10)]
+
+    raise ValueError(f"gate sconosciuto: {gate}")
+
+
+def apply_sigmoid_vector(feature_vector, model_json):
+    """Come apply_sigmoid ma per UN vettore feature gia' ordinato
+    posizionalmente (usato dal sequential multi-feature). Ritorna P(classe 1)."""
+    reg = _extract_flat_regressor(model_json)
+    mean  = np.array(reg["scaler_mean"], dtype=float)
+    scale = np.array(reg["scaler_scale"], dtype=float)
+    w     = np.array(reg["coef"][0], dtype=float)
+    b     = float(reg["intercept"][0])
+    x = np.asarray(feature_vector, dtype=float)
+    if x.shape[0] != mean.shape[0]:
+        raise ValueError(f"Mismatch feature: vettore len {x.shape[0]}, "
+                         f"modello vuole {mean.shape[0]}.")
+    z = (x - mean) / scale
+    return 1.0 / (1.0 + np.exp(-(float(np.dot(w, z)) + b)))
