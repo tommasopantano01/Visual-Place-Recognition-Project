@@ -1,16 +1,3 @@
-"""
-adaptive_reranking.py — Orchestratore: sceglie il tipo di threshold
-(--threshold) e richiama lo script corrispondente in methods/.
-
-NOTA (fix): la versione precedente cercava ogni script in una sottocartella
-omonima (es. su/su.py), ma tutti gli script dei metodi vivono in methods/.
-Questa versione punta a methods/<script> per ogni metodo.
-
-Uso:
-    python VPR-Adaptive-ReRanking/adaptive_reranking.py --threshold su \
-        --preds-dir preds/ --z-data z_data.torch --matcher superpoint-lg \
-        --output-dir out/ --criterion "P(help)-aP(hurts)"
-"""
 import argparse
 import subprocess
 import sys
