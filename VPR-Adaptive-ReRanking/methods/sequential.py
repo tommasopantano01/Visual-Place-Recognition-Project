@@ -3,7 +3,7 @@ methods/sequential.py — Sequential adaptive re-ranking: cascata a tre cancelli
 
   top-1 -> gate1 -> stop | top-5 -> gate5 -> stop | top-10 -> gate10 -> stop | top-20
 
-MULTI-FEATURE, coerente coi modelli allenati (notebook "POLICY SEQUENZIALE"):
+MULTI-FEATURE, coerente coi modelli allenati:
   gate1  (1):  num_inliers_top1                               target: helps_20
   gate5  (6):  num_inliers_top1, max_inliers_top5, second_max_inliers_top5,
                gap_inliers_top5, best_retrieval_rank_top5, top1_is_best_top5
@@ -11,8 +11,7 @@ MULTI-FEATURE, coerente coi modelli allenati (notebook "POLICY SEQUENZIALE"):
                best_retrieval_rank_top5, top1_is_best_top5, max_inliers_top10,
                second_max_inliers_top10, gap_inliers_top10,
                best_retrieval_rank_top10, top1_is_best_top10
-Le feature progressive sono costruite LIVE dai risultati IM accumulati, con la
-stessa logica del notebook (ordine per num_inliers desc, tie retrieval_rank asc).
+Le feature progressive sono costruite LIVE dai risultati IM accumulati.
 Vedi _common.sequential_features. probability > tau -> continua.
 
 MODELLI: un JSON per gate (formato regressor_to_dict con feat_cols anonime),
