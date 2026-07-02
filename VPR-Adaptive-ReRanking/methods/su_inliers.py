@@ -1,22 +1,3 @@
-"""
-methods/su_inliers.py — Adaptive reranking SU+inliers.
-
-UN SOLO COMANDO, fa tutto in locale. Come methods/su.py ma il feature set e'
-['SU','inliers']: serve num_inliers della top-1 di OGNI query per decidere.
-Quel matching top-1 viene fatto internamente tramite lo script del prof
-match_queries_preds.py --num-preds 1 (NON modificato).
-
-Flusso interno (invisibile all'utente):
-  1. lancia match_queries_preds.py --num-preds 1 su TUTTE le query (feature top-1)
-  2. legge SU (da z_data) + num_inliers (dai .torch top-1) -> score -> decisione
-  3. copia i .txt delle sole INCERTE in una cartella temp locale
-  4. lancia match_queries_preds.py --num-preds N sulle incerte (matching totale)
-
-Le query NON incerte restano col solo top-1 gia' calcolato al passo 1.
-
-Convenzione: inliers = -num_inliers. Modelli/soglie: training/su_inliers/ e
-validation/su_inliers/. Criteri: P(hard) | P(help) | P(help)-aP(hurts).
-"""
 import argparse
 import json
 import shutil
