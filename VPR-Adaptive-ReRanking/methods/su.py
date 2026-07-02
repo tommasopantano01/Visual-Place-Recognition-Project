@@ -1,25 +1,3 @@
-"""
-methods/su.py — Adaptive reranking SU-only.
-
-UN SOLO COMANDO, fa tutto in locale. Decisione basata SOLO sulle L2 del
-retrieval (nessun image matching per decidere), poi image matching TOTALE solo
-sulle query incerte, eseguito tramite lo script del prof match_queries_preds.py
-(che NON viene modificato).
-
-Flusso interno (invisibile all'utente):
-  1. legge SU da z_data.torch, applica regressore + soglia del criterio scelto
-  2. partiziona: score > tau -> INCERTE (rerank);  score <= tau -> skip
-  3. copia i .txt delle sole INCERTE in una cartella temp locale
-     (output-dir/_tmp_rerank_su/)
-  4. lancia match_queries_preds.py --preds-dir <temp> --num-preds N
-     -> image matching totale solo sulle incerte
-  5. l'output dei .torch finisce in output-dir/ (vedi --out-dir passato allo script)
-
-Le query NON incerte: nessun image matching (resta valida la top-1 del retrieval).
-
-Modelli/soglie: training/su/model.json + validation/su/threshold.csv.
-Criteri: P(hard) | P(help) | P(help)-aP(hurts).
-"""
 import argparse
 import json
 import shutil
