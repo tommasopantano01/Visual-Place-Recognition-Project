@@ -1,23 +1,3 @@
-"""
-validation/best_r1 — SOLA VALIDATION: sceglie la soglia hard su num_inliers_top1
-che MASSIMIZZA la R@1 adattiva sul dataset di validation (tie: saving max, poi
-soglia minima). NON allena.
-
-Catena: --val-csv (candidate-level) -> sweep (_sweep) -> selettore best_r1 ->
-threshold.csv. Niente l2_distance, niente model.json.
-
-OUTPUT in --out-dir (default: questa cartella):
-  threshold_<model>_<matcher>.csv   numerico (threshold, r1_adaptive_pct,
-                  saving_pct), letto dal deploy via load_threshold_csv -> ["threshold"].
-  sweep.csv / selection.csv   per il report.
-
-NB: best_r1 e' deployabile a se' (cartella propria), ma R@1_best e' anche il
-riferimento interno usato da efficiency (target = 95% del guadagno di best_r1).
-
-Uso:
-    python VPR-Adaptive-ReRanking/validation/best_r1/best_r1.py --val-csv <dir-o-file.csv> \
-        --model cosplace --matcher superpoint-lg
-"""
 import argparse
 import sys
 from pathlib import Path
