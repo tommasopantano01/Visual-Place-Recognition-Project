@@ -1,14 +1,3 @@
-"""
-best_r1/best_r1.py — Applica la threshold gia' calibrata in
-validation/bestR1/threshold_<model>_<matcher>.csv.
-
-Soglia: num_inliers(top-1) < threshold -> rerank su top-20 (torch_folder).
-Altrimenti skip: copia il .txt originale del retrieval (txt_folder).
-
-Uso:
-    python VPR-adaptive-re-ranking/best_r1/best_r1.py \
-        --preds-dir preds/ --model cosplace --matcher superpoint-lg --output-dir out/
-"""
 import argparse
 import sys
 from pathlib import Path
@@ -16,7 +5,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from _common import load_threshold_csv, run_scalar_method
 
-# ATTENZIONE al casing: la cartella di validation e' "bestR1", non "best_r1".
 _VALIDATION_DIR = Path(__file__).resolve().parent.parent / "validation" / "bestR1"
 
 
