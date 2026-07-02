@@ -1,27 +1,3 @@
-"""
-validation/youden — SOLA VALIDATION: sceglie la soglia hard su num_inliers_top1
-col criterio di Youden (argmax TPR_hard - FPR_easy) sul dataset di validation.
-NON allena (i metodi scalari non hanno regressore: la soglia E' la scelta).
-
-Catena: --val-csv (candidate-level) -> sweep delle soglie (_sweep) ->
-selettore youden -> threshold.csv. Niente l2_distance, niente model.json.
-
-OUTPUT in --out-dir (default: questa cartella):
-  threshold_<model>_<matcher>.csv   PIATTO e numerico (threshold, r1_adaptive_pct,
-                  saving_pct); il deploy lo legge con load_threshold_csv -> ["threshold"].
-  sweep.csv       sweep completo (per il report).
-  selection.csv   riga scelta con la colonna 'method' (per il report).
-
---val-csv accetta un file o una directory di candidate-level CSV (colonne
-query_id, retrieval_rank, num_inliers, rerank_rank_topK, is_positive, K).
-
---model/--matcher identificano la coppia (retrieval, image matching) su cui e'
-calibrata la soglia: finiscono nel nome del threshold.csv in output.
-
-Uso:
-    python VPR-Adaptive-ReRanking/validation/youden/youden.py --val-csv <dir-o-file.csv> \
-        --model cosplace --matcher superpoint-lg
-"""
 import argparse
 import sys
 from pathlib import Path
