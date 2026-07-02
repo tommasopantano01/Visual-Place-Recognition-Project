@@ -1,7 +1,7 @@
 """
 _common.py — Motore condiviso da tutti i metodi di adaptive reranking.
 
-CONVENZIONE DI OUTPUT (nuova): una cartella per budget dentro --output-dir.
+CONVENZIONE DI OUTPUT: una cartella per budget dentro --output-dir.
   output-dir/top1/<id>.torch    query fermate al top-1 (skip rerank)
   output-dir/top5/<id>.torch    stop intermedio sequenziale (5 candidati)
   output-dir/top10/<id>.torch   stop intermedio sequenziale (10 candidati)
@@ -9,9 +9,8 @@ CONVENZIONE DI OUTPUT (nuova): una cartella per budget dentro --output-dir.
 
 Ogni query finisce in ESATTAMENTE una cartella topK, dove K = quanti
 candidati sono stati passati all'image matching per quella query. Il .torch
-contiene K risultati IM reali (formato per-elemento identico a
-match_queries_preds.py). check_performance.py conta i file in ogni topK per
-ricavare quante query si sono fermate a ciascun budget.
+contiene K risultati IM reali. check_performance.py conta i file in ogni
+topK per ricavare quante query si sono fermate a ciascun budget.
 
 Eccezione: i metodi che decidono lo skip SENZA fare alcun IM (es. su/) per
 le query skippate salvano il .txt di retrieval in top1/ (niente inlier da
@@ -34,9 +33,9 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(_REPO_ROOT))
 sys.path.append(str(_REPO_ROOT / "image-matching-models"))
 
-# Import "pigri" (A2), separati per granularita':
-#   - torch, tqdm: servono ai decisori SU e all'I/O .torch. Provati per primi.
-#   - util, matching: servono SOLO all'image matching (metodi del prof). Se
+# Import separati:
+#   - torch, tqdm: servono ai decisori SU e all'I/O .torch.
+#   - util, matching: servono SOLO all'image matching. Se
 #     mancano, solo le funzioni di matching diventano inutilizzabili; training,
 #     validation e decisione SU (che usano torch ma non il matcher) funzionano.
 try:
@@ -210,7 +209,7 @@ def run_im_extend(preds_dir, query_ids, accumulated_results, start_rank, end_ran
 
 def save_results_torch(query_id, results, folder):
     """Salva la lista di risultati IM reali (len = budget) come <id>.torch in
-    folder. Formato per-elemento identico a match_queries_preds.py."""
+    folder."""
     torch.save(list(results), os.path.join(folder, f"{query_id}.torch"))
 
 
@@ -417,14 +416,13 @@ def print_summary(rerank_ids, skip_ids):
     print(f"  Skip (solo top-1): {len(skip_ids):5d}  ({100 - pct:.1f}%)")
 
 
-# ████████████████████████████████████████████████████████████████████
-# AGGIUNTE SU — TRAINING + VALIDATION dei metodi su/ e su_inliers/
+# ============================================================
+# TRAINING + VALIDATION dei metodi su/ e su_inliers/
 #
-# Tutto cio' che segue serve SOLO agli script in training/ e validation/
-# per i metodi basati su SU (riattivati). Non e' usato dai metodi del prof.
-# Richiede scikit-learn e pandas (gia' dipendenze del progetto di calibrazione).
-# Le funzioni qui sotto riutilizzano l2_to_su() definita sopra.
-# ████████████████████████████████████████████████████████████████████
+# Funzioni usate dagli script in training/ e validation/ per i metodi
+# basati su SU. Richiedono scikit-learn e pandas. Riutilizzano l2_to_su()
+# definita sopra.
+# ============================================================
 
 import pandas as pd
 from sklearn.pipeline import Pipeline
@@ -439,7 +437,7 @@ BASE_REQUIRED_COLS = ["query_id", "retrieval_rank",
                       "num_inliers", "is_positive", "rerank_rank_topK"]
 SU_REQUIRED_COLS   = BASE_REQUIRED_COLS + ["l2_distance"]
 
-# i tre target/criteri del notebook di calibrazione
+# i tre target/criteri di calibrazione
 SU_TARGETS  = ("hard", "help", "hurts")
 SU_CRITERIA = ("P(hard)", "P(help)", "P(help)-aP(hurts)")
 
@@ -519,7 +517,7 @@ def load_query_level(csv_dir_or_file, k=10, alpha=0.5, needs_l2=True):
     return pd.DataFrame(rows)
 
 
-# --- TRAINING di un singolo regressore (Cella 2) ---------------------------
+# --- TRAINING di un singolo regressore --------------------------------------
 
 def fit_regressor(X, y):
     clf = Pipeline([
@@ -544,7 +542,7 @@ def regressor_to_dict(clf, feat_cols):
     }
 
 
-# --- Ricostruzione + applicazione regressore per la grid-search (Cella 3) ---
+# --- Ricostruzione + applicazione regressore per la grid-search -------------
 
 def regressor_from_dict(d):
     sc = StandardScaler()
@@ -561,7 +559,7 @@ def regressor_from_dict(d):
 
 def predict_proba_pos(clf, X):
     """P(classe positiva). Nome esplicito per non confondersi con
-    apply_sigmoid (che opera su dict per i metodi del prof)."""
+    apply_sigmoid (che opera su dict per i metodi scalari/logistici)."""
     return clf.predict_proba(X)[:, 1]
 
 
@@ -579,18 +577,17 @@ def clean_scores(scores):
     )
 
 
-# ████████████████████████████████████████████████████████████████████
+# ============================================================
 # FEATURE PROGRESSIVE SEQUENTIAL (deploy) — costruite live dai risultati IM
-# accumulati, IDENTICHE a progressive_features_for_group del notebook.
+# accumulati.
 # accumulated[q] = lista di risultati IM dei candidati con retrieval_rank
 # 1..len, IN ORDINE di retrieval_rank (indice i -> retrieval_rank i+1).
-# ████████████████████████████████████████████████████████████████████
+# ============================================================
 
 def _progressive_feats_from_results(results_upto_b):
     """results_upto_b: lista di risultati IM dei candidati con retrieval_rank<=b,
     in ordine di rank. Ritorna (max_inliers, second_max, gap, best_rank,
-    top1_is_best) con la STESSA logica del notebook: ordina per num_inliers desc,
-    tie su retrieval_rank asc."""
+    top1_is_best): ordina per num_inliers desc, tie su retrieval_rank asc."""
     # (num_inliers, retrieval_rank) con rank = indice+1
     items = [(float(r["num_inliers"]), i + 1) for i, r in enumerate(results_upto_b)]
     items.sort(key=lambda t: (-t[0], t[1]))     # num_inliers desc, rank asc
@@ -602,7 +599,7 @@ def _progressive_feats_from_results(results_upto_b):
 
 def sequential_features(accumulated_q, gate):
     """Costruisce il vettore feature per il gate ('gate1'|'gate5'|'gate10') dai
-    risultati IM accumulati per una query, nell'ORDINE ESATTO del notebook.
+    risultati IM accumulati per una query.
     accumulated_q: lista risultati IM (rank 1..N visti finora).
     Ritorna una lista di float (ordine posizionale = feat_cols del model.json)."""
     num_inliers_top1 = float(accumulated_q[0]["num_inliers"])
@@ -620,7 +617,7 @@ def sequential_features(accumulated_q, gate):
     if gate == "gate10":
         up10 = accumulated_q[:10]
         max10, second10, gap10, brank10, isbest10 = _progressive_feats_from_results(up10)
-        # NB asimmetria notebook: per il blocco top5 NON c'e' second_max, solo gap.
+        # NB asimmetria: per il blocco top5 NON c'e' second_max, solo gap.
         # [num_inliers_top1, max_top5, gap_top5, best_rank_top5, top1_is_best_top5,
         #  max_top10, second_max_top10, gap_top10, best_rank_top10, top1_is_best_top10]
         return [num_inliers_top1, max5, gap5, float(brank5), float(isbest5),
