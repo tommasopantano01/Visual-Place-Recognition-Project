@@ -1,12 +1,12 @@
 """
 validation/sequential — SOLA VALIDATION della policy sequenziale (cascata
-1 -> 5 -> 10 -> 20). FEDELE al notebook "POLICY SEQUENZIALE".
+1 -> 5 -> 10 -> 20).
 
 NON allena. Carica i TRE regressori gia' allenati (un JSON per gate) da una
 INPUT DIR, scelti in base a retrieval model e matcher, e cerca sul dataset di
 validation le soglie (tau1, tau5, tau10) che massimizzano la R@1 adattiva.
 
-MODELLI IN INPUT (--models-dir): tre file, uno per gate. Nomi (dal notebook):
+MODELLI IN INPUT (--models-dir): tre file, uno per gate:
     seq_model_continue_1_phelps_<model>_svox_train_<matcher>.json   (gate1)
     seq_model_continue_5_<model>_svox_train_<matcher>.json          (gate5)
     seq_model_continue_10_<model>_svox_train_<matcher>.json         (gate10)
@@ -27,11 +27,11 @@ FEATURE — ordine ESATTO del notebook (verificato sugli scaler dei JSON reali):
   ma include second_max_inliers_top10. Fedele al notebook.
 
 TARGET (solo per diagnostica; il training e' altrove):
-  gate1:  helps_20   = (correct_0==0) & (correct_20==1)        [P(helps), notebook]
+  gate1:  helps_20   = (correct_0==0) & (correct_20==1)
   gate5:  continue_5 = (correct_5==0) & (max(correct_10,correct_20)==1)
   gate10: continue_10= (correct_10==0) & (correct_20==1)
 
-POLICY (paper e notebook):
+POLICY:
   stop retrieval se p1<=tau1; stop top5 se p1>tau1 & p5<=tau5;
   stop top10 se p5>tau5 & p10<=tau10; full top20 se p10>tau10.
   Costo: budget 0 costa 1 (serve I1). Tie-break: R@1 max, poi avg_matches min.
@@ -40,8 +40,7 @@ INPUT --val-csv: CSV candidate-level (dir o file) con
     query_id, candidate_path, retrieval_rank, num_inliers, is_positive
 oppure un CSV gia' query-seq con le colonne feature pronte.
 
-OUTPUT: threshold_<model>_<matcher>.csv PIATTO (una riga: tau1,tau5,tau10),
-leggibile da load_threshold_csv del deploy. Scritto in --out-dir.
+OUTPUT: threshold_<model>_<matcher>.csv.
 
 Uso:
     python VPR-Adaptive-ReRanking/validation/sequential/sequential.py \
@@ -69,7 +68,7 @@ except ImportError:
     def tqdm(x, *a, **k):
         return x
 
-# ── ORDINE ESATTO FEATURE (notebook) ─────────────────────────────────
+# ── ORDINE ESATTO FEATURE ─────────────────────────────────
 FEATURES_CONTINUE_1 = ["num_inliers_top1"]
 FEATURES_CONTINUE_5 = [
     "num_inliers_top1", "max_inliers_top5", "second_max_inliers_top5",
@@ -86,7 +85,7 @@ REQUIRED_CAND_COLS = ["query_id", "candidate_path", "retrieval_rank",
 _PROG_BUDGETS = (5, 10, 20)
 
 
-# ── candidate-level -> query-seq (porting fedele dal notebook) ────────
+# ── candidate-level ────────
 
 def rerank_correct_with_budget(group, budget):
     sub = group[group["retrieval_rank"] <= budget]
@@ -234,7 +233,7 @@ def gate_proba(df, gate_model, feature_names):
     return predict_proba_pos(regressor_from_dict(gate_model), X)
 
 
-# ── grid-search 3D (fedele al notebook) ──────────────────────────────
+# ── grid-search ──────────────────────────────
 
 def _policy_stats(p1, p5, p10, t1, t5, t10, c0, c5, c10, c20):
     go5  = p1 > t1
