@@ -1,17 +1,3 @@
-"""
-logistic_help/logistic_help.py — Regressione logistica P(help | num_inliers).
-Un solo regressore, una sola feature. Coefficienti in
-validation/logistic_help/model.json, soglia di probabilita' in
-validation/logistic_help/threshold_<model>_<matcher>.csv (entrambi gia'
-calibrati, vedi extension/helps_estimator.py --method logistic --criterion help).
-
-probability > tau -> rerank su top-20 (torch_folder). Altrimenti skip:
-copia il .txt originale (txt_folder).
-
-Uso:
-    python VPR-adaptive-re-ranking/logistic_help/logistic_help.py \
-        --preds-dir preds/ --model cosplace --matcher superpoint-lg --output-dir out/
-"""
 import argparse
 import sys
 from pathlib import Path
