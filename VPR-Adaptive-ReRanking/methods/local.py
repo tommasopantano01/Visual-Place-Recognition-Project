@@ -1,19 +1,3 @@
-"""
-local/local.py — Applica la threshold gia' calibrata in
-validation/local/threshold_<model>_<matcher>.csv.
-
-Soglia: num_inliers(top-1) < threshold -> rerank su top-20 (torch_folder).
-Altrimenti skip: copia il .txt originale del retrieval (txt_folder).
-
-NOTA: validation/local/local.py e' ancora uno stub vuoto (nessuna logica di
-calibrazione committata) — questo script punta comunque alla convenzione di
-nome corretta, ma il file threshold_<model>_<matcher>.csv non esistera' finche'
-la validation di Luca non viene implementata (o il file non viene copiato a mano).
-
-Uso:
-    python VPR-adaptive-re-ranking/local/local.py \
-        --preds-dir preds/ --model cosplace --matcher superpoint-lg --output-dir out/
-"""
 import argparse
 import sys
 from pathlib import Path
