@@ -10,13 +10,16 @@ import torch
 
 _HERE = Path(__file__).resolve().parent
 sys.path.append(str(_HERE.parent))          # VPR-Adaptive-ReRanking/  (per _common)
-from _common import load_z_data_distances, l2_to_su, get_query_ids, print_summary
+from _common import load_z_data_distances, l2_to_su, get_query_ids, print_summary, load_threshold_csv
 
 _ARR_DIR   = _HERE.parent
 _REPO_ROOT = _ARR_DIR.parent
 _MATCH_SCRIPT = _REPO_ROOT / "match_queries_preds.py"
 
 VALID_CRITERIA = ("P(hard)", "P(help)", "P(help)-aP(hurts)")
+# criterion -> column prefix in validation/<features>/threshold_<model>_<matcher>.csv
+# (flat CSV written by validation/su.py: hard_tau, help_tau, cs_alpha, cs_tau, ...)
+CRITERION_PREFIX = {"P(hard)": "hard", "P(help)": "help", "P(help)-aP(hurts)": "cs"}
 
 # features -> (sottocartella validation, chiave feature_set nel json, template model json)
 FEATURES = {
@@ -128,7 +131,7 @@ def parse_args():
     p.add_argument("--output-dir", required=True)
     p.add_argument("--model-json", default=None,
                    help="default: validation/<features>/<template>_<model>_<matcher>.json")
-    p.add_argument("--threshold-json", default=None,
+    p.add_argument("--threshold-csv", default=None,
                    help="default: validation/<features>/threshold_<model>_<matcher>.csv")
     return p.parse_args()
 
@@ -137,15 +140,17 @@ def main(args):
     subdir, feature_set, json_tmpl = FEATURES[args.features]
     val_dir = _ARR_DIR / "validation" / subdir
     model_json     = args.model_json     or str(val_dir / json_tmpl.format(model=args.model, matcher=args.matcher))
-    threshold_json = args.threshold_json or str(val_dir / f"threshold_{args.model}_{args.matcher}.csv")
+    threshold_csv  = args.threshold_csv  or str(val_dir / f"threshold_{args.model}_{args.matcher}.csv")
 
     with open(model_json) as f:
         model_data = json.load(f)
-    with open(threshold_json) as f:
-        thr = json.load(f)
 
     regressors = model_data["feature_sets"][feature_set]["regressors"]
-    hp = thr["feature_sets"][feature_set]["criteria"][args.criterion]
+    pfx = CRITERION_PREFIX[args.criterion] + "_"
+    hp = {k[len(pfx):]: v for k, v in load_threshold_csv(threshold_csv).items() if k.startswith(pfx)}
+    if "tau" not in hp:
+        raise ValueError(f"{threshold_csv}: no columns '{pfx}*' for criterion {args.criterion} "
+                         "(re-run validation/su.py for this model/matcher)")
     print(f"criterio = {args.criterion}   params = {hp}   [{args.model}/{args.matcher}]")
 
     query_ids = get_query_ids(args.preds_dir)
