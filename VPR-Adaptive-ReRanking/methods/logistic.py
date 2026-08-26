@@ -49,13 +49,19 @@ def main(args):
 
     # cost_sensitive: score = P(help) - lambda * P(hurt)
     lam, tau = hp["alpha"], hp["tau"]
-    models = load_model_json(model_json)   # {"help": {...}, "hurt": {...}}
+    data = load_model_json(model_json)
+    # nested JSON: {"feature_sets": {<fs>: {"regressors": {"help": {...}, "hurts": {...}}}}}
+    if "feature_sets" in data:
+        models = data["feature_sets"][next(iter(data["feature_sets"]))]["regressors"]
+    else:                                  # flat: {"help": {...}, "hurts": {...}}
+        models = data
+    hurt_key = "hurts" if "hurts" in models else "hurt"
     print(f"lambda = {lam}   tau = {tau}   [{args.model}/{args.matcher}]")
 
     results_top1 = run_im_top1_with_results(args.preds_dir, args.matcher, args.device, args.im_size)
     signals = {q: {"inliers": r["num_inliers"]} for q, r in results_top1.items()}
     p_help = apply_sigmoid(signals, models["help"])
-    p_hurt = apply_sigmoid(signals, models["hurt"])
+    p_hurt = apply_sigmoid(signals, models[hurt_key])
     scores = {q: p_help[q] - lam * p_hurt[q] for q in results_top1}
 
     rerank_ids, skip_ids = partition_by_probability(scores, tau)
