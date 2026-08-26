@@ -24,7 +24,7 @@ for dataset_name, url in URLS.items():
 # trained regressors (model JSON files) used by VPR-Adaptive-ReRanking/validation/
 if MODELS_URL:
     print("Downloading trained regressors (model JSON files for validation)")
-    OUT_DIR = "VPR-Adaptive-ReRanking/validation"
+    OUT_DIR = "vpr-adaptive-reranking/validation"
     # subfolders already present in VPR-Adaptive-ReRanking/validation/
     SUBDIRS = ("logistic_hard", "logistic_help", "logistic_cost_sensitive",
                "su", "su_inliers", "sequential")
