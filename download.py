@@ -5,7 +5,7 @@ URLS = {
     "svox": "https://drive.google.com/file/d/16iuk8voW65GaywNUQlWAbDt6HZzAJ_t9/view?usp=drive_link",
 }
 
-MODELS_URL = "https://drive.google.com/drive/folders/1M43jAQBMmZ2_YUI0v2_Ww044E5oNWk-W?usp=sharing"
+MODELS_URL = "https://drive.google.com/file/d/1coTlsjSFG1vfH5P653aOBRLrRiRkniHK/view?usp=drive_link"
 
 
 import os
