@@ -78,13 +78,17 @@ python match_queries_preds.py \
 2. Build the candidate-level CSV (same command as above, different split)
 3. Search thresholds — one script per family, or all at once:
 ```sh
+   python vpr-adaptive-reranking/validation/<script>.py \
+   --method '<method>' --val-csv '<val.csv>' --model '<model>' --matcher '<matcher>'
+```
+   (`thresholds.py`, `logistic.py`, `su.py` — uses `--features` instead of `--method` —, `sequential.py`)
+
+   or all at once, setting `run_all.py`:
+```sh
    python vpr-adaptive-reranking/validation/run_all.py \
    --val-csv-template '<candidate_level_val.csv>'
 ```
-   or individually: `validation/thresholds.py --method youden|best_r1|efficiency`, `validation/logistic.py --method hard|help|cost_sensitive`, `validation/su.py --features su|su_inliers`, `validation/sequential.py` — all take `--val-csv --model --matcher`.
-
    → `validation/<subdir>/threshold_<model>_<matcher>.csv` + `validation/summary.csv`
-
 ## Workflow 3 — Test / Deploy
 
 1. Retrieval + image matching on the **test** split (different from train & validation)
