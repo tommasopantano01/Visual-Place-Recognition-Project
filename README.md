@@ -62,13 +62,11 @@ python match_queries_preds.py \
 ```
 3. Train the regressors:
 ```sh
-   python vpr-adaptive-reranking/train_logistic.py --method hard \
+   python vpr-adaptive-reranking/train_logistic.py --method '<method>' \
    --train-csv '<candidate_level_train.csv>' --model '<model>' --matcher '<matcher>'
-   # repeat with --method help, --method cost_sensitive
 
-   python vpr-adaptive-reranking/train_su.py --features su \
+   python vpr-adaptive-reranking/train_su.py --features '<feature>' \
    --train-csv '<candidate_level_train.csv>' --model '<model>' --matcher '<matcher>'
-   # repeat with --features su_inliers
 ```
    → `validation/{logistic_hard,logistic_help,logistic_cost_sensitive,su,su_inliers}/model_*.json`
 
