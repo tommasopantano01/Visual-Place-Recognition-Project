@@ -89,7 +89,7 @@ python match_queries_preds.py \
    --val-csv-template '<candidate_level_val.csv>'
 ```
    → `validation/<subdir>/threshold_<model>_<matcher>.csv` + `validation/summary.csv`
-## Workflow 3 — Test / Deploy
+## Workflow 3 — Test
 
 1. Retrieval + image matching on the **test** split (different from train & validation)
 2. Run adaptive re-ranking, per method:
