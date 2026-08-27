@@ -34,10 +34,10 @@ Every workflow below starts with these two steps. Shown once here; the workflows
 **Retrieval** — images → ranked candidates per query:
 ```sh
 python VPR-methods-evaluation/main.py \
---num_workers 8 --batch_size 32 --log_dir <name> \
---method=cosplace --backbone=ResNet18 --descriptors_dimension=512 --image_size 512 512 \
+--num_workers 8 --batch_size 32 --log_dir '<name>' \
+--method='<method>' --backbone (if needed) --descriptors_dimension='<desc_dim>' --image_size '<img_W img_H >' \
 --database_folder '<database-folder>' --queries_folder '<queries-folder>' \
---num_preds_to_save 20 --recall_values 1 5 10 20 \
+--num_preds_to_save --recall_values \
 --save_for_uncertainty     # keep ON — produces z_data.torch, needed by su/su_inliers
 ```
 → `logs/<name>/<timestamp>/preds/*.txt` + `z_data.torch`
@@ -45,7 +45,7 @@ python VPR-methods-evaluation/main.py \
 **Image matching** — num_inliers for the top-K candidates of each query:
 ```sh
 python match_queries_preds.py \
---preds-dir '<preds-folder>' --matcher '<matcher>' --device 'cuda' --num-preds 20
+--preds-dir '<preds-folder>' --matcher '<matcher>' --device 'cuda' --num-preds
 ```
 → `<preds-folder>_<matcher>/*.torch`
 
@@ -58,7 +58,7 @@ python match_queries_preds.py \
 ```sh
    python vpr-adaptive-reranking/build_candidate_level_csv.py \
    --preds_dir '<preds>' --match_dir '<preds>_<matcher>' \
-   --z_data_path '<z_data.torch>' --output_csv '<candidate_level_train.csv>' --k 20
+   --z_data_path '<z_data.torch>' --output_csv '<candidate_level_train.csv>' --k '<k>'
 ```
 3. Train the regressors:
 ```sh
@@ -91,14 +91,14 @@ python match_queries_preds.py \
    → `validation/<subdir>/threshold_<model>_<matcher>.csv` + `validation/summary.csv`
 ## Workflow 3 — Test
 
-1. Retrieval + image matching on the **test** split (different from train & validation)
+1. Retrieval + image matching on the **test** split
 2. Run adaptive re-ranking, per method:
 ```sh
    python vpr-adaptive-reranking/adaptive_reranking.py \
    --threshold '<method>' --preds-dir '<preds>' --model '<model>' --matcher '<matcher>' \
    --inliers-dir '<preds>_<matcher>' --output-dir '<out>' --num-preds 20
    # su / su_inliers also need: --z-data '<z_data.torch>'
-   # drop --inliers-dir to matcher live instead of reusing step-1 results
+   # drop --inliers-dir to match live instead of reusing step-1 results
 ```
    Output organized by stopping budget: `top0/` (su, no IM), `top1/` (decision only), `top5/`, `top10/`, `top20/` (full rerank). One query, one folder — counting files gives the cost distribution directly.
 3. Measure it:
@@ -127,7 +127,6 @@ python match_queries_preds.py \
 
 ## Notes
 
-- Train / validation / test **must be three different splits**, or numbers are inflated.
 - `--model` / `--matcher` must match across all three workflows for the same regressor/threshold to apply.
 - `--inliers-dir` (Workflow 3, `run_all_methods.py`) replays precomputed `.torch` instead of live matching — use it whenever IM for that split already exists.
 - Uncertainty eval (AML students only): `python -m vpr_uncertainty.eval --preds-dir '<preds>' --inliers-dir '<inliers>' --z-data-path '<z_data.torch>'`
