@@ -27,20 +27,6 @@ Full re-ranking runs image matching (IM) on all top-20 candidates of every query
 
 Code lives in [`vpr-adaptive-reranking/`](./vpr-adaptive-reranking).
 
-## Quick test on already-computed data
-
-If top-20 IM (`.torch`) already exists somewhere, `--inliers-dir` replays it instead of recomputing — same numbers, seconds instead of hours, no GPU needed:
-
-```sh
-python vpr-adaptive-reranking/run_all_methods.py \
---preds-dir-template   '/content/drive/MyDrive/VPR/preds/{model}_{dataset}' \
---inliers-dir-template '/content/drive/MyDrive/VPR/matching_results/{model}_{dataset}_{matcher}' \
---z-data-template      '/content/drive/MyDrive/VPR/logs/{model}_{dataset}/z_data.torch' \
---dataset 'svox_training' --output-root '/content/drive/MyDrive/VPR/adaptive_test'
-```
-
-Runs every method on every (model, matcher) pair, skips missing combinations, writes `summary_deploy.csv`.
-
 ## Building blocks
 
 Every workflow below starts with these two steps. Shown once here; the workflows just say "run this on split X."
