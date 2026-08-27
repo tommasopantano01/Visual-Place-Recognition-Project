@@ -45,9 +45,9 @@ python VPR-methods-evaluation/main.py \
 **Image matching** — num_inliers for the top-K candidates of each query:
 ```sh
 python match_queries_preds.py \
---preds-dir '<preds-folder>' --matcher 'superpoint-lg' --device 'cuda' --num-preds 20
+--preds-dir '<preds-folder>' --matcher '<matcher>' --device 'cuda' --num-preds 20
 ```
-→ `<preds-folder>_superpoint-lg/*.torch`
+→ `<preds-folder>_<matcher>/*.torch`
 
 ---
 
@@ -57,17 +57,17 @@ python match_queries_preds.py \
 2. Build the candidate-level CSV:
 ```sh
    python vpr-adaptive-reranking/build_candidate_level_csv.py \
-   --preds_dir '<preds>' --match_dir '<preds>_superpoint-lg' \
+   --preds_dir '<preds>' --match_dir '<preds>_<matcher>' \
    --z_data_path '<z_data.torch>' --output_csv '<candidate_level_train.csv>' --k 20
 ```
 3. Train the regressors:
 ```sh
    python vpr-adaptive-reranking/train_logistic.py --method hard \
-   --train-csv '<candidate_level_train.csv>' --model cosplace --matcher superpoint-lg
+   --train-csv '<candidate_level_train.csv>' --model '<model>' --matcher '<matcher>'
    # repeat with --method help, --method cost_sensitive
 
    python vpr-adaptive-reranking/train_su.py --features su \
-   --train-csv '<candidate_level_train.csv>' --model cosplace --matcher superpoint-lg
+   --train-csv '<candidate_level_train.csv>' --model '<model>' --matcher '<matcher>'
    # repeat with --features su_inliers
 ```
    → `validation/{logistic_hard,logistic_help,logistic_cost_sensitive,su,su_inliers}/model_*.json`
@@ -93,8 +93,8 @@ python match_queries_preds.py \
 2. Run adaptive re-ranking, per method:
 ```sh
    python vpr-adaptive-reranking/adaptive_reranking.py \
-   --threshold '<method>' --preds-dir '<preds>' --model cosplace --matcher superpoint-lg \
-   --inliers-dir '<preds>_superpoint-lg' --output-dir '<out>' --num-preds 20
+   --threshold '<method>' --preds-dir '<preds>' --model '<model>' --matcher '<matcher>' \
+   --inliers-dir '<preds>_<matcher>' --output-dir '<out>' --num-preds 20
    # su / su_inliers also need: --z-data '<z_data.torch>'
    # drop --inliers-dir to matcher live instead of reusing step-1 results
 ```
@@ -106,7 +106,7 @@ python match_queries_preds.py \
 ```
    Reports stop distribution, IM cost/saving vs full rerank, adaptive R@N vs base R@N.
 
-   For the full-rerank reference on the same data: `python reranking.py --preds-dir '<preds>' --inliers-dir '<preds>_superpoint-lg' --num-preds 20 --recall-values 1 5 10 20` — same sort convention as `check_performance.py`, numbers are directly comparable.
+   For the full-rerank reference on the same data: `python reranking.py --preds-dir '<preds>' --inliers-dir '<preds>_<matcher>' --num-preds 20 --recall-values 1 5 10 20` — same sort convention as `check_performance.py`, numbers are directly comparable.
 
 ---
 
