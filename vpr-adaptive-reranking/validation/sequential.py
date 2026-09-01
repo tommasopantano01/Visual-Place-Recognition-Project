@@ -1,17 +1,13 @@
 """
-validation/sequential.py — VALIDATION-ONLY of the sequential policy (cascade
-1 -> 5 -> 10 -> 20). Mirror of methods/sequential.py.
-
-No training. Loads the THREE trained regressors (one JSON per gate, downloaded
-from Google Drive by download_models.py into validation/sequential/), chosen by
-retrieval model and matcher, and grid-searches on the validation dataset the
-thresholds (tau1, tau5, tau10) that maximise the adaptive R@1.
+Loads the THREE trained regressors, chosen by retrieval model and matcher,
+and grid-searches on the validation dataset the thresholds (tau1, tau5, tau10)
+that maximise the adaptive R@1.
 
 INPUT MODELS (--models-dir, default validation/sequential/): three files, one per gate:
     seq_model_continue_1_phelps_<model>_svox_train_<matcher>.json   (gate1)
     seq_model_continue_5_<model>_svox_train_<matcher>.json          (gate5)
     seq_model_continue_10_<model>_svox_train_<matcher>.json         (gate10)
-The search is tolerant: glob *continue_{1,5,10}*<model>*<matcher>*.json.
+
 Each JSON has the regressor_to_dict format (_common): anonymous feat_cols
 ("feature_0"...), scaler_mean/scale, coef, intercept, classes. Features are
 passed POSITIONALLY in the exact order below.
@@ -24,8 +20,6 @@ FEATURES:
                 best_retrieval_rank_top5, top1_is_best_top5,
                 max_inliers_top10, second_max_inliers_top10, gap_inliers_top10,
                 best_retrieval_rank_top10, top1_is_best_top10]
-  NB asymmetry: gate10 does NOT include second_max_inliers_top5 (only the gap
-  for top5) but does include second_max_inliers_top10. Faithful to the notebook.
 
 TARGETS:
   gate1:  helps_20    = (correct_0==0) & (correct_20==1)
@@ -37,19 +31,12 @@ POLICY:
   stop at top10 if p5>tau5 & p10<=tau10; full top20 if p10>tau10.
   Cost: budget 0 costs 1 (the top-1 IM is needed). Tie-break: max R@1, then min avg_matches.
 
-INPUT --val-csv: candidate-level CSV (file or dir) with
-    query_id, candidate_path, retrieval_rank, num_inliers, is_positive
-or a query-level CSV with the feature columns already computed.
+INPUT --val-csv.
 
 Writes in validation/sequential/:
   threshold_<model>_<matcher>.csv   tau1, tau5, tau10 + metrics (read by deploy)
   selection_<model>_<matcher>.csv   val_csv, metrics, params, stop distribution
 and updates validation/summary.csv.
-
-Usage (Colab cell):
-    !python VPR-Adaptive-ReRanking/validation/sequential.py \\
-        --val-csv /content/drive/MyDrive/VPR/candidate_level/val_cosplace_superpoint-lg.csv \\
-        --model cosplace --matcher superpoint-lg
 """
 import argparse
 import json
@@ -62,8 +49,8 @@ import numpy as np
 import pandas as pd
 
 _HERE = Path(__file__).resolve().parent
-sys.path.append(str(_HERE))                   # validation/  (for _outputs)
-sys.path.append(str(_HERE.parent))            # VPR-Adaptive-ReRanking/  (for _common)
+sys.path.append(str(_HERE))
+sys.path.append(str(_HERE.parent))
 from _common import regressor_from_dict, predict_proba_pos
 from _outputs import (canon_model, canon_matcher, val_tag, write_threshold_csv,
                       write_selection_csv, upsert_summary, print_written)
@@ -277,8 +264,6 @@ def grid_search(p1, p5, p10, c0, c5, c10, c20, taus):
                     best.update(r1=r1, avg=avg, tau1=float(t1), tau5=float(t5), tau10=float(t10))
     return best
 
-
-# ── orchestration ────────────────────────────────────────────────────
 
 def run(val_csv, model, matcher, models_dir=None, tau_step=0.02, k_full=20, out_dir=None):
     model, matcher = canon_model(model), canon_matcher(matcher)
