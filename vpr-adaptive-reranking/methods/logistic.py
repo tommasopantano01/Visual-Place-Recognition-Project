@@ -1,14 +1,14 @@
 """
-methods/logistic.py — Deploy della famiglia logistica su num_inliers_top1
+methods/logistic.py — Deploy of the logistic family on num_inliers_top1
 (hard | help | cost_sensitive).
 
-Regola:
-  hard            rerank se P(hard) > tau
-  help            rerank se P(help) > tau
-  cost_sensitive  rerank se P(help) - alpha*P(hurts) > tau
+Rule:
+  hard            rerank if P(hard) > tau
+  help            rerank if P(help) > tau
+  cost_sensitive  rerank if P(help) - alpha*P(hurts) > tau
 
-Il regressore viene letto dal model JSON in validation/<subdir>/, i parametri
-(tau, alpha) da validation/<subdir>/threshold_<model>_<matcher>.csv.
+The regressor is read from the model JSON in validation/<subdir>/, the
+parameters (tau, alpha) from validation/<subdir>/threshold_<model>_<matcher>.csv.
 
     python VPR-Adaptive-ReRanking/methods/logistic.py --method help \
         --preds-dir <preds/> --model cosplace --matcher superpoint-lg \
@@ -27,7 +27,7 @@ from _common import (
 
 _ARR_DIR = Path(__file__).resolve().parent.parent
 
-# nome metodo -> (sottocartella validation, template del model json)
+# method name -> (validation subfolder, model json template)
 METHODS = {
     "hard":           ("logistic_hard",           "model_{model}_{matcher}.json"),
     "help":           ("logistic_help",           "model_{model}_{matcher}.json"),
@@ -37,7 +37,7 @@ METHODS = {
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Adaptive reranking — logistic su num-inliers (hard | help | cost_sensitive)")
+        description="Adaptive reranking — logistic on num-inliers (hard | help | cost_sensitive)")
     parser.add_argument("--method",     required=True, choices=sorted(METHODS.keys()))
     parser.add_argument("--preds-dir",  required=True)
     parser.add_argument("--model",      required=True, help="cosplace or megaloc")
@@ -47,8 +47,8 @@ def parse_args():
     parser.add_argument("--num-preds",  type=int, default=20)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--inliers-dir", default=None,
-                        help="OFFLINE: cartella con i .torch top-20 gia' calcolati "
-                             "(niente image matching, solo lettura)")
+                        help="OFFLINE: folder with the already computed top-20 .torch files "
+                             "(no image matching, read only)")
     parser.add_argument("--model-json", default=None,
                         help="default: validation/<subdir>/<template>")
     parser.add_argument("--threshold-csv", default=None,
@@ -57,7 +57,7 @@ def parse_args():
 
 
 def _resolve(args):
-    """Path di soglia e model JSON, con messaggi chiari se mancano."""
+    """Threshold and model JSON paths, with clear messages if they are missing."""
     subdir, json_tmpl = METHODS[args.method]
     val_dir = _ARR_DIR / "validation" / subdir
     threshold_csv = Path(args.threshold_csv or val_dir / f"threshold_{args.model}_{args.matcher}.csv")
@@ -65,13 +65,13 @@ def _resolve(args):
                       val_dir / json_tmpl.format(model=args.model, matcher=args.matcher))
     if not threshold_csv.exists():
         raise FileNotFoundError(
-            f"Soglia non trovata: {threshold_csv}\n"
-            f"  -> esegui prima: validation/logistic.py --method {args.method} "
+            f"Threshold not found: {threshold_csv}\n"
+            f"  -> run first: validation/logistic.py --method {args.method} "
             f"--model {args.model} --matcher {args.matcher} --val-csv <candidate_level_val.csv>")
     if not model_json.exists():
         raise FileNotFoundError(
-            f"Model JSON non trovato: {model_json}\n"
-            "  -> esegui validation/download_models.py oppure passa --model-json")
+            f"Model JSON not found: {model_json}\n"
+            "  -> download the trained regressors or pass --model-json")
     return threshold_csv, model_json
 
 
