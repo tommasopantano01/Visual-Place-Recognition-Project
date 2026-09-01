@@ -2,34 +2,11 @@
 _su_validation.py — VALIDATION-ONLY engine for the regressor-based methods
 (logistic hard/help/cost_sensitive, SU, SU+inliers).
 
-It trains NOTHING: it loads a model JSON already produced by training and
+It loads a model JSON already produced by training and
 searches, on the validation dataset chosen by the user, the parameters of each
 criterion that maximise the adaptive R@1.
 
-Base functions (load_query_level, regressor_from_dict, predict_proba_pos,
-clean_scores, constants) live in ../_common.py.
-
-Grid search:
-  - FIXED grids: tau in [-1,1] step 0.01, alpha in [0,5] step 0.1
-    (the logistic methods on a pure probability pass taus in [0,1]);
-  - tie-break: same R@1 -> prefer reranking FEWER queries;
-  - R@1 in percent.
 Criteria whose regressor is missing in the JSON are SKIPPED.
-
-ACCEPTED model JSON FORMATS (see _normalize_model):
-  1) nested: {"feature_sets": {<fs>: {"feat_cols": [...], "regressors": {...}}}}
-  2) flat:   {"feat_cols": [...], "scaler_mean": [...], "scaler_scale": [...],
-              "coef": [[...]], "intercept": [...], "classes": [...]}
-     -> wrapped automatically as a single regressor, under the key deduced
-        from the requested criterion (P(hard) -> 'hard', P(help) -> 'help').
-
-FEATURE NAMES: the JSON feat_cols are mapped to the columns produced by
-load_query_level through FEATURE_ALIASES. In particular 'num_inliers' (used by
-the SU+inliers regressors, trained on the NEGATED inlier count, as in
-methods/su.py at deploy) maps to the column 'inliers' = -num_inliers_top1.
-
-L2: the l2_distance column is required in the validation CSV ONLY if the
-feature set uses SU ("SU" in feat_cols).
 """
 import json
 import sys
@@ -68,13 +45,9 @@ FEATURE_ALIASES = {
     "inliers":          "inliers",
 }
 
-# FIXED grids
 ALPHAS_GRID    = np.round(np.arange(0.0, 5.01, 0.1), 2)
 TAUS_GRID      = np.round(np.arange(-1.0, 1.01, 0.01), 2)
 TAUS_GRID_PROB = np.round(np.arange(0.0, 1.001, 0.01), 2)
-
-
-# ── model JSON normalisation ─────────────────────────────────────────
 
 def _target_from_criteria(criteria):
     if len(criteria) == 1:
@@ -125,8 +98,6 @@ def _df_columns(feat_cols):
         cols.append(FEATURE_ALIASES[c])
     return cols
 
-
-# ── adaptive R@1 + parameter search (tie-break: fewer reranked queries) ──
 
 def r1_from_mask(mask, c0, c20):
     """mask=True -> use the full rerank (c20), else the top-1 (c0). In %."""
@@ -205,8 +176,6 @@ def grid_search_criteria(df_val, regressors, feat_cols, criteria=SU_CRITERIA,
         print("  [WARNING] no criterion calibrated (regressors missing in the model JSON).")
     return results, sweeps
 
-
-# ── orchestration: read model JSON, validate, return everything ─────
 
 def run_validation(model_json_path, val_csv, criteria=SU_CRITERIA,
                    taus=TAUS_GRID, alphas=ALPHAS_GRID, feature_set=None):
