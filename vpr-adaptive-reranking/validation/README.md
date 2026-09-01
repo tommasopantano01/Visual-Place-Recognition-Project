@@ -9,26 +9,19 @@ selects the variant.
 
 | Script | Variants | Needs model JSON | Needs `l2_distance` |
 |---|---|---|---|
-| `thresholds.py --method` | `youden` `best_r1` `efficiency` `local`* | no | no |
+| `thresholds.py --method` | `youden` `best_r1` `efficiency` | no | no |
 | `logistic.py --method` | `hard` `help` `cost_sensitive` | yes | no |
 | `su.py --features` | `su` `su_inliers` | yes | **yes** |
 | `sequential.py` | — | yes (3 gate JSONs) | no |
 
-\* `local` (Luca's non-parametric estimate) is not implemented yet: paste the code in `thresholds.py::select_local_threshold`.
-
-## 0. One-time setup: download the trained regressors
+## 0. One-time setup: the trained regressors
 
 The model JSON files come from training and are **not tracked** in the repo
-(`.gitignore`). They are shipped as one zip on Google Drive.
+(`.gitignore`). Either produce them with the `train_*.py` scripts (Workflow 1
+in the main README), or download the pre-trained ones with `download.py` at
+the repo root.
 
-```sh
-pip install gdown
-python VPR-Adaptive-ReRanking/validation/download_models.py --url "<Google Drive share link of validation_models.zip>"
-# zip already on your mounted Drive:  --zip /content/drive/MyDrive/VPR/validation_models.zip
-# only check what is present:        --check
-```
-
-The zip layout (a leading `validation/` folder is tolerated):
+Expected layout under `validation/`:
 
 ```
 logistic_hard/model_<model>_<matcher>.json
@@ -38,6 +31,7 @@ su/model_su_<model>_<matcher>.json
 su_inliers/model_su_num_inliers_<model>_<matcher>.json
 sequential/seq_model_continue_{1,5,10}_*<model>*<matcher>*.json
 ```
+
 `<model>` ∈ {`cosplace`, `megaloc`}, `<matcher>` ∈ {`superpoint-lg`, `loftr`}.
 
 ## 1. Run everything (recommended)
@@ -46,6 +40,7 @@ sequential/seq_model_continue_{1,5,10}_*<model>*<matcher>*.json
 python VPR-Adaptive-ReRanking/validation/run_all.py \
   --val-csv-template "/content/drive/MyDrive/VPR/candidate_level/val_{model}_{matcher}.csv"
 ```
+
 `{model}` / `{matcher}` are replaced for every pair; glob `*` is allowed
 (e.g. `".../*sfxs_val*{model}*{matcher}*.csv"`). Pairs whose CSV is missing are
 skipped and listed at the end. Restrict with `--methods`, `--models`, `--matchers`.
@@ -58,6 +53,7 @@ python VPR-Adaptive-ReRanking/validation/logistic.py   --method help   --val-csv
 python VPR-Adaptive-ReRanking/validation/su.py         --features su   --val-csv <csv> --model cosplace --matcher superpoint-lg
 python VPR-Adaptive-ReRanking/validation/sequential.py                 --val-csv <csv> --model cosplace --matcher superpoint-lg
 ```
+
 `--model-json` / `--models-dir` override the default JSON location; `sp-lg` is
 accepted as an alias of `superpoint-lg`.
 
