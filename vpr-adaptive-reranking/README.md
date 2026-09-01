@@ -11,6 +11,8 @@ cd ..
 python download.py
 ```
 
+`download.py` fetches the datasets and the trained regressor JSON files into `vpr-adaptive-reranking/validation/<subdir>/`. With those in place you can skip Workflow 1 and start from validation or test.
+
 ---
 
 # Adaptive Re-ranking
@@ -57,10 +59,15 @@ python match_queries_preds.py \
 
    python vpr-adaptive-reranking/train_su.py --features '<feature>' \
    --train-csv '<candidate_level_train.csv>' --model '<model>' --matcher '<matcher>'
+
+   python vpr-adaptive-reranking/train_sequential.py \
+   --train-csv '<candidate_level_train.csv>' --model '<model>' --matcher '<matcher>'
 ```
    → `validation/{logistic_hard,logistic_help,logistic_cost_sensitive,su,su_inliers}/model_*.json`
+   → `validation/sequential/seq_model_continue_{1,5,10}_<model>_<matcher>.json` (three gates, trained in one pass)
 
 `youden` / `best_r1` / `efficiency` need no training — pure thresholds, start at Workflow 2.
+If you ran `download.py`, the regressors are already installed and you can skip this workflow entirely.
 
 ## Workflow 2 — Validation
 
@@ -71,7 +78,7 @@ python match_queries_preds.py \
    python vpr-adaptive-reranking/validation/<script>.py \
    --method '<method>' --val-csv '<val.csv>' --model '<model>' --matcher '<matcher>'
 ```
-   (`thresholds.py`, `logistic.py`, `su.py` — uses `--features` instead of `--method` —, `sequential.py`)
+   (`thresholds.py`, `logistic.py`, `su.py` — uses `--features` instead of `--method` —, `sequential.py` — no `--method`)
 
    or all at once, setting `run_all.py`:
 ```sh
@@ -79,6 +86,7 @@ python match_queries_preds.py \
    --val-csv-template '<candidate_level_val.csv>'
 ```
    → `validation/<subdir>/threshold_<model>_<matcher>.csv` + `validation/summary.csv`
+
 ## Workflow 3 — Test
 
 1. Retrieval + image matching on the **test** split
@@ -91,6 +99,15 @@ python match_queries_preds.py \
    # drop --inliers-dir to match live instead of reusing step-1 results
 ```
    Output organized by stopping budget: `top0/` (su, no IM), `top1/` (decision only), `top5/`, `top10/`, `top20/` (full rerank). One query, one folder — counting files gives the cost distribution directly.
+
+   To run every method on every (model, matcher) pair in one go and get a comparison table:
+```sh
+   python vpr-adaptive-reranking/run_all_methods.py \
+   --preds-dir-template '<preds>' --inliers-dir-template '<preds>_<matcher>' \
+   --z-data-template '<z_data.torch>' --output-root '<out>'
+```
+   → `<out>/summary_deploy.csv`
+
 3. Measure it:
 ```sh
    python vpr-adaptive-reranking/check_performance.py \
@@ -116,5 +133,6 @@ python match_queries_preds.py \
 
 ## Notes
 
-- `--model` / `--matcher` must match across all three workflows for the same regressor/threshold to apply.
-- `--inliers-dir` (Workflow 3, `run_all_methods.py`) replays precomputed `.torch` instead of live matching — use it whenever IM for that split already exists.
+- `--model` / `--matcher` must match across all three workflows for the same regressor/threshold to apply. Use the canonical spelling `superpoint-lg` (not `sp-lg`) in Workflow 3.
+- `--inliers-dir` replays precomputed `.torch` instead of live matching — use it whenever IM for that split already exists. Available in every deploy script and in `run_all_methods.py`.
+- `su` / `su_inliers` need `z_data.torch` from the retrieval step (`--save_for_uncertainty`); the other methods do not.
