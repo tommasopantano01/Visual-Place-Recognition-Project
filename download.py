@@ -5,7 +5,9 @@ URLS = {
     #"svox": "https://drive.google.com/file/d/16iuk8voW65GaywNUQlWAbDt6HZzAJ_t9/view?usp=drive_link",
 }
 
-MODELS_URL = "https://drive.google.com/file/d/1coTlsjSFG1vfH5P653aOBRLrRiRkniHK/view?usp=drive_link"
+MODELS_URL = {"https://drive.google.com/file/d/1SWVac3bIP_kZenYz7AOkDkax33BVU7FC/view?usp=drive_link", 
+              "https://drive.google.com/file/d/1kQ0S7PPFsryQSuVThzX0Rl1Qcln9cwRO/view?usp=sharing"
+}
 
 
 import os
@@ -21,19 +23,17 @@ for dataset_name, url in URLS.items():
     shutil.unpack_archive(zip_filepath, extract_dir="data")
     os.remove(zip_filepath)
 
-# trained regressors (model JSON files) used by VPR-Adaptive-ReRanking/validation/
 if MODELS_URL:
     print("Downloading trained regressors (model JSON files for validation)")
     OUT_DIR = "vpr-adaptive-reranking/validation"
-    # subfolders already present in VPR-Adaptive-ReRanking/validation/
     SUBDIRS = ("logistic_hard", "logistic_help", "logistic_cost_sensitive",
                "su", "su_inliers", "sequential")
     with tempfile.TemporaryDirectory() as tmp:
-        zip_filepath = os.path.join(tmp, "validation_models.zip")
-        gdown.download(MODELS_URL, zip_filepath, fuzzy=True)
-        shutil.unpack_archive(zip_filepath, extract_dir=tmp)
-        # Drive may wrap the files in an extra folder (e.g. validation_models/su/...);
-        # regardless of nesting, move every .json into OUT_DIR/<its parent folder name>/
+        for i, url in enumerate(MODELS_URL):
+            zip_filepath = os.path.join(tmp, f"validation_models_{i}.zip")
+            gdown.download(url, zip_filepath, fuzzy=True)
+            shutil.unpack_archive(zip_filepath, extract_dir=tmp)
+
         n = 0
         for root, _, files in os.walk(tmp):
             parent = os.path.basename(root)
