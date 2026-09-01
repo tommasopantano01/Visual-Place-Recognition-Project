@@ -50,7 +50,7 @@ def run(features, val_csv, model, matcher, model_json=None, top_k=20, out_dir=No
     model_json = Path(model_json) if model_json else _HERE / subdir / tmpl.format(model=model, matcher=matcher)
     if not model_json.exists():
         raise FileNotFoundError(
-            f"model JSON not found: {model_json}\n"
+            f"model JSON not found: {model_json}\n")
     print(f"[{FAMILY}/{features}] {model}/{matcher}  <- {val_csv}")
     res = run_validation(model_json, val_csv, criteria=CRITERIA, taus=TAUS_GRID,
                          alphas=ALPHAS_GRID, feature_set=feature_set)
