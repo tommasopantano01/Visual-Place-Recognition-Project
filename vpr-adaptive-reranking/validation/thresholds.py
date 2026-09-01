@@ -1,8 +1,5 @@
 """
-validation/thresholds.py — hard-threshold family (youden | best_r1 | efficiency | local).
-Mirror of methods/Thresholds.py.
-
-No training. From the validation candidate-level CSV it builds the sweep of
+From the validation candidate-level CSV it builds the sweep of
 thresholds T on num_inliers_top1 (rerank if inliers_top1 < T) and selects T
 with the chosen criterion.
 
@@ -11,11 +8,6 @@ Writes in validation/<subdir>/ (subdir: youden | bestR1 | efficiency | local):
   selection_<model>_<matcher>.csv   method, val_csv, metrics, params
   sweep_<model>_<matcher>.csv       full sweep (one row per T)
 and updates validation/summary.csv.
-
-Usage (Colab cell):
-    !python VPR-Adaptive-ReRanking/validation/thresholds.py --method youden \\
-        --val-csv /content/drive/MyDrive/VPR/candidate_level/val_cosplace_superpoint-lg.csv \\
-        --model cosplace --matcher superpoint-lg
 """
 import argparse
 import sys
@@ -30,22 +22,12 @@ from _outputs import (canon_model, canon_matcher, val_tag, write_threshold_csv,
 
 FAMILY = "thresholds"
 
-# method -> (subdir in validation/, selector(sweep, retention) -> DataFrame 1 row)
 METHODS = {
     "youden":     ("youden",     lambda sw, r: select_youden_threshold(sw)),
     "best_r1":    ("bestR1",     lambda sw, r: select_best_r1_threshold(sw)),
     "efficiency": ("efficiency", lambda sw, r: select_eff95_threshold(sw, retention=r)),
     "local":      ("local",      None),
 }
-
-
-def select_local_threshold(sweep, query_level=None):
-    """Non-parametric local estimate of P(helps | num_inliers_top1) (Luca's
-    method). NOT IMPLEMENTED YET: paste the code here. Must return a 1-row
-    DataFrame with columns method, threshold, r1_adaptive_pct, saving_pct."""
-    raise NotImplementedError(
-        "validation for 'local' is not implemented: paste Luca's code in "
-        "validation/thresholds.py::select_local_threshold()")
 
 
 def run(method, val_csv, model, matcher, top_k=20, retention=0.95, out_dir=None):
