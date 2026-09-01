@@ -36,17 +36,14 @@ def run(method, val_csv, model, matcher, top_k=20, retention=0.95, out_dir=None)
     model, matcher = canon_model(model), canon_matcher(matcher)
     subdir, selector = METHODS[method]
     out_dir = Path(out_dir) if out_dir else _HERE / subdir
-
     print(f"[{FAMILY}/{method}] {model}/{matcher}  <- {val_csv}")
+
+
     sweep = sweep_from_candidate(val_csv, top_k=top_k)
-    if selector is None:
-        selection = select_local_threshold(sweep)
-    else:
-        selection = selector(sweep, retention)
+    selection = selector(sweep, retention)
     r = selection.iloc[0]
     T = int(r["threshold"])
     row_sw = sweep[sweep["threshold"] == T].iloc[0]
-
     thr = {"threshold": T, "r1_adaptive_pct": float(r["r1_adaptive_pct"]),
            "saving_pct": float(r["saving_pct"])}
     sel = {"family": FAMILY, "method": method, "model": model, "matcher": matcher,
