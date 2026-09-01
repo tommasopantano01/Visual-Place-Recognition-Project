@@ -22,7 +22,6 @@ DUE MODALITA' DI ESECUZIONE
   LIVE     esegue davvero il matcher (GPU + image-matching-models + immagini).
   OFFLINE  --inliers-dir <cartella .torch top-20 gia' calcolati>: nessun
            matching, i primi K candidati vengono letti dai file esistenti.
-           Stessi identici numeri, tempo di esecuzione in secondi, gira su CPU.
 """
 
 import os
@@ -40,11 +39,6 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(_REPO_ROOT))
 sys.path.append(str(_REPO_ROOT / "image-matching-models"))
 
-# Import separati:
-#   - torch, tqdm: servono ai decisori SU e all'I/O .torch.
-#   - util, matching: servono SOLO all'image matching. Se
-#     mancano, solo le funzioni di matching diventano inutilizzabili; training,
-#     validation e decisione SU (che usano torch ma non il matcher) funzionano.
 try:
     import torch
     _TORCH_OK = True
@@ -86,7 +80,7 @@ _IM_DEPS_OK = _TORCH_OK and _MATCHER_OK
 
 
 # ============================================================
-# LETTURA QUERY E PARAMETRI
+# LETTURA QUERY E PARAMETRI 
 # ============================================================
 
 def get_query_ids(preds_dir):
@@ -110,21 +104,21 @@ def load_threshold_csv(path):
         if head == "{":
             data = json.load(f)
             fs = data["feature_sets"]
-            fs_name = next(iter(fs))                     # unico feature set
+            fs_name = next(iter(fs))
             crit = fs[fs_name]["criteria"]
             if not crit:
                 raise ValueError(
                     f"{path}: nessun criterio calibrato nel threshold JSON "
                     "(la validation ha saltato tutti i criteri)."
                 )
-            crit_name = next(iter(crit))                 # unico criterio calibrato
+            crit_name = next(iter(crit))
             params = crit[crit_name]
             out = {}
             if "tau" in params:
                 out["tau"] = float(params["tau"])
             if "alpha" in params:
                 out["alpha"] = float(params["alpha"])
-            if "threshold" in params:                    # per SU su soglia scalare
+            if "threshold" in params:
                 out["threshold"] = float(params["threshold"])
             if not out:
                 raise ValueError(
@@ -434,7 +428,7 @@ def _extract_flat_regressor(model_json):
 
 
 # ============================================================
-# SEGNALE SU (Score Uncertainty) — solo per su/ e su_inliers/
+# SEGNALE Score Uncertainty (SU) — solo per su/ e su_inliers/
 # Calcolato dalle distanze L2 del retrieval, nessun image matching.
 # ============================================================
 
@@ -516,10 +510,6 @@ def print_summary(rerank_ids, skip_ids):
 
 # ============================================================
 # TRAINING + VALIDATION dei metodi su/ e su_inliers/
-#
-# Funzioni usate dagli script in training/ e validation/ per i metodi
-# basati su SU. Richiedono scikit-learn e pandas. Riutilizzano l2_to_su()
-# definita sopra.
 # ============================================================
 
 import pandas as pd
