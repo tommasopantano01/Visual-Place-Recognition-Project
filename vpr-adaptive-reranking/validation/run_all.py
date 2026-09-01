@@ -1,20 +1,11 @@
 """
-validation/run_all.py — Run EVERY validation method on EVERY (model, matcher)
+validation/run_all.py — Run every validation method on every (model, matcher)
 pair in one command, so that all threshold_<model>_<matcher>.csv files and
 validation/summary.csv come out automatically.
 
-The validation dataset is chosen by the user through a path TEMPLATE with the
-placeholders {model} and {matcher} (glob wildcards * are allowed), e.g.
-    --val-csv-template "/content/drive/MyDrive/VPR/candidate_level/val_{model}_{matcher}.csv"
-    --val-csv-template "/content/drive/MyDrive/VPR/candidate_level/*sfxs_val*{model}*{matcher}*.csv"
-Pairs whose CSV is not found are skipped and listed at the end.
-
-Usage (Colab cell):
-    !python VPR-Adaptive-ReRanking/validation/run_all.py \\
-        --val-csv-template "/content/drive/MyDrive/VPR/candidate_level/val_{model}_{matcher}.csv"
-    # subset of methods / pairs:
-    !python VPR-Adaptive-ReRanking/validation/run_all.py --val-csv-template "..." \\
-        --methods youden help su --models cosplace --matchers superpoint-lg
+The validation dataset is chosen by the user through a path template with the
+placeholders {model} and {matcher} (glob wildcards * are allowed), pairs whose
+CSV is not found are skipped and listed at the end.
 """
 import argparse
 import sys
@@ -33,12 +24,10 @@ from _outputs import SUMMARY_CSV, canon_model, canon_matcher
 MODELS   = ("cosplace", "megaloc")
 MATCHERS = ("superpoint-lg", "loftr")
 
-# method key -> (family script, callable(val_csv, model, matcher, args))
 METHODS = {
     "youden":         ("thresholds", lambda v, m, t, a: _thr.run("youden",     v, m, t, top_k=a.top_k)),
     "best_r1":        ("thresholds", lambda v, m, t, a: _thr.run("best_r1",    v, m, t, top_k=a.top_k)),
     "efficiency":     ("thresholds", lambda v, m, t, a: _thr.run("efficiency", v, m, t, top_k=a.top_k, retention=a.retention)),
-    "local":          ("thresholds", lambda v, m, t, a: _thr.run("local",      v, m, t, top_k=a.top_k)),
     "hard":           ("logistic",   lambda v, m, t, a: _log.run("hard",           v, m, t, top_k=a.top_k)),
     "help":           ("logistic",   lambda v, m, t, a: _log.run("help",           v, m, t, top_k=a.top_k)),
     "cost_sensitive": ("logistic",   lambda v, m, t, a: _log.run("cost_sensitive", v, m, t, top_k=a.top_k)),
@@ -46,8 +35,7 @@ METHODS = {
     "su_inliers":     ("su",         lambda v, m, t, a: _su.run("su_inliers", v, m, t, top_k=a.top_k)),
     "sequential":     ("sequential", lambda v, m, t, a: _seq.run(v, m, t, tau_step=a.tau_step, k_full=a.top_k)),
 }
-DEFAULT_METHODS = [k for k in METHODS if k != "local"]   # local: not implemented yet
-
+DEFAULT_METHODS = list(METHODS)
 
 def resolve_val_csv(template, model, matcher):
     """Template -> existing file (glob allowed). None if not found / ambiguous."""
