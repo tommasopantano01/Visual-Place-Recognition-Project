@@ -1,15 +1,12 @@
 """
-_sweep.py — Shared engine of the hard-threshold methods (youden, best_r1,
-efficiency). From a validation candidate-level CSV it builds the full sweep of
-thresholds on num_inliers_top1 and contains the three selectors. No regressors,
-no l2_distance, no sklearn.
+_sweep.py — Shared engine of the hardthreshold methods (youden, best_r1,
+efficiency). From a validation candidate level CSV it builds the full sweep of
+thresholds on num_inliers_top1 and contains the three selectors.
 
 Decision rule: rerank(q) if inliers_top1(q) < T.
 
-Used as a module by validation/thresholds.py:
-    sweep_from_candidate(), select_best_r1_threshold(),
-    select_youden_threshold(), select_eff95_threshold()
-or as a script: builds and saves the sweep from a candidate-level CSV (--help).
+Used as a module by validation/thresholds.py or,
+as a script: builds and saves the sweep from a candidate-level CSV (--help).
 """
 import argparse
 import os
@@ -24,25 +21,25 @@ REQUIRED_COLUMNS = {"query_id", "retrieval_rank", "num_inliers",
                     "rerank_rank_topK", "is_positive", "K"}
 
 
-# ── CANDIDATE-LEVEL -> QUERY-LEVEL -> SWEEP (porting da build_threshold_sweep.py) ──
+# ── CANDIDATE-LEVEL -> QUERY-LEVEL -> SWEEP ──────────────────────────
 
 def validate_candidate_level(df):
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
-        raise ValueError(f"Colonne candidate-level mancanti: {sorted(missing)}")
+        raise ValueError(f"Missing candidate-level columns: {sorted(missing)}")
     df = df.copy()
     for c in ("query_id", "retrieval_rank", "num_inliers", "rerank_rank_topK", "is_positive", "K"):
         df[c] = df[c].astype(int)
     if (df["num_inliers"] < 0).any():
-        raise ValueError("num_inliers deve essere non negativo.")
+        raise ValueError("num_inliers must be non negative.")
     if not set(df["is_positive"].unique()).issubset({0, 1}):
-        raise ValueError("is_positive deve contenere solo 0/1.")
+        raise ValueError("is_positive must contain only 0/1.")
     return df
 
 
 def candidate_level_to_query_level(df, strict_k=False):
-    """Per ogni query: inliers_top1 (retrieval_rank==1), pre_r1_correct
-    (is_positive del retrieval_rank==1), post_r1_correct (is_positive del
+    """For every query: inliers_top1 (retrieval_rank==1), pre_r1_correct
+    (is_positive of retrieval_rank==1), post_r1_correct (is_positive of
     rerank_rank_topK==1)."""
     df = validate_candidate_level(df)
 
@@ -50,7 +47,7 @@ def candidate_level_to_query_level(df, strict_k=False):
     expected_k = df.groupby("query_id")["K"].first()
     inconsistent_k = candidates_per_query[candidates_per_query != expected_k]
     if len(inconsistent_k) > 0:
-        msg = f"Alcune query hanno righe != K. Esempi: {inconsistent_k.head(10).to_dict()}"
+        msg = f"Some queries have a number of rows != K. Examples: {inconsistent_k.head(10).to_dict()}"
         if strict_k:
             raise ValueError(msg)
         warnings.warn(msg)
@@ -59,13 +56,13 @@ def candidate_level_to_query_level(df, strict_k=False):
     if not (top1_retr.groupby("query_id").size() == 1).all():
         bad = top1_retr.groupby("query_id").size()
         bad = bad[bad != 1].head(10).to_dict()
-        raise ValueError(f"Ogni query deve avere un solo retrieval_rank==1. Esempi: {bad}")
+        raise ValueError(f"Every query must have exactly one retrieval_rank==1. Examples: {bad}")
 
     top1_rerank = df[df["rerank_rank_topK"] == 1]
     if not (top1_rerank.groupby("query_id").size() == 1).all():
         bad = top1_rerank.groupby("query_id").size()
         bad = bad[bad != 1].head(10).to_dict()
-        raise ValueError(f"Ogni query deve avere un solo rerank_rank_topK==1. Esempi: {bad}")
+        raise ValueError(f"Every query must have exactly one rerank_rank_topK==1. Examples: {bad}")
 
     q_pre = top1_retr[["query_id", "num_inliers", "is_positive"]].rename(
         columns={"num_inliers": "inliers_top1", "is_positive": "pre_r1_correct"})
@@ -74,12 +71,12 @@ def candidate_level_to_query_level(df, strict_k=False):
     query_level = q_pre.merge(q_post, on="query_id", how="inner")
 
     if len(query_level) != df["query_id"].nunique():
-        raise ValueError("Query perse durante la conversione candidate->query.")
+        raise ValueError("Queries lost during the candidate->query conversion.")
     return query_level.sort_values("query_id").reset_index(drop=True)
 
 
 def evaluate_threshold(query_level, threshold, top_k=20):
-    """Valuta una soglia T. Decisione: rerank se inliers_top1 < T."""
+    """Evaluates a threshold T. Decision: rerank if inliers_top1 < T."""
     inliers      = query_level["inliers_top1"].to_numpy(dtype=int)
     pre_correct  = query_level["pre_r1_correct"].to_numpy(dtype=int)
     post_correct = query_level["post_r1_correct"].to_numpy(dtype=int)
@@ -125,7 +122,7 @@ def evaluate_threshold(query_level, threshold, top_k=20):
 
 
 def build_threshold_sweep(query_level, top_k=20):
-    """Sweep completo. T=0 -> nessun rerank (inliers >= 0); T=max+1 -> tutti."""
+    """Full sweep. T=0 -> no rerank (inliers >= 0); T=max+1 -> all of them."""
     max_threshold = int(query_level["inliers_top1"].max()) + 1
     rows = [evaluate_threshold(query_level, T, top_k=top_k)
             for T in range(0, max_threshold + 1)]
@@ -133,11 +130,11 @@ def build_threshold_sweep(query_level, top_k=20):
 
 
 def load_candidate_level(val_csv):
-    """File singolo o directory di candidate-level CSV -> un DataFrame unico."""
+    """Single file or directory of candidate-level CSVs -> one DataFrame."""
     if os.path.isdir(val_csv):
         files = sorted(glob(os.path.join(val_csv, "*.csv")))
         if not files:
-            raise FileNotFoundError(f"Nessun CSV in {val_csv}")
+            raise FileNotFoundError(f"No CSV in {val_csv}")
         return pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
     return pd.read_csv(val_csv)
 
@@ -148,10 +145,10 @@ def sweep_from_candidate(val_csv, top_k=20, strict_k=False):
     return build_threshold_sweep(ql, top_k=top_k)
 
 
-# ── SELETTORI (file di Tommaso, logica verbatim) ─────────────────────
+# ── SELECTORS ────────────────────────────────────────────────────────
 
 def select_best_r1_threshold(sweep):
-    """Soglia che massimizza adaptive R@1; tie: saving desc, threshold asc."""
+    """Threshold that maximises adaptive R@1; tie: saving desc, threshold asc."""
     df = sweep.copy()
     best_r1 = df["adaptive_r1_pct"].max()
     candidates = df[df["adaptive_r1_pct"] == best_r1]
@@ -161,7 +158,7 @@ def select_best_r1_threshold(sweep):
 
 
 def select_youden_threshold(sweep):
-    """Soglia che massimizza Youden (TPR_hard - FPR_easy); tie: saving desc,
+    """Threshold that maximises Youden (TPR_hard - FPR_easy); tie: saving desc,
     adaptive_r1 desc, threshold asc."""
     df = sweep.copy()
     if "youden" not in df.columns:
@@ -173,8 +170,8 @@ def select_youden_threshold(sweep):
 
 
 def select_eff95_threshold(sweep, retention=0.95):
-    """Soglia piu' efficiente che trattiene >= retention del guadagno R@1
-    rispetto al miglior adaptive R@1; tie: saving desc, adaptive_r1 desc, threshold asc."""
+    """Most efficient threshold that retains >= retention of the R@1 gain
+    with respect to the best adaptive R@1; tie: saving desc, adaptive_r1 desc, threshold asc."""
     df = sweep.copy()
     pre_r1  = df["pre_r1_pct"].iloc[0]
     best_r1 = df["adaptive_r1_pct"].max()
@@ -187,12 +184,12 @@ def select_eff95_threshold(sweep, retention=0.95):
                           "r1_adaptive_pct": row["adaptive_r1_pct"], "saving_pct": row["saving_pct"]}])
 
 
-# ── CLI: costruisce e salva lo sweep (come build_threshold_sweep.py) ──
+# ── CLI: builds and saves the sweep ──────────────────────────────────
 
 def main():
-    p = argparse.ArgumentParser(description="Costruisce lo sweep delle soglie da un candidate-level CSV.")
-    p.add_argument("--input", required=True, type=Path, help="candidate-level CSV (file o dir)")
-    p.add_argument("--output", required=True, type=Path, help="sweep CSV in output")
+    p = argparse.ArgumentParser(description="Builds the threshold sweep from a candidate-level CSV.")
+    p.add_argument("--input", required=True, type=Path, help="candidate-level CSV (file or dir)")
+    p.add_argument("--output", required=True, type=Path, help="output sweep CSV")
     p.add_argument("--top-k", type=int, default=20)
     p.add_argument("--query-level-output", type=Path, default=None)
     p.add_argument("--strict-k", action="store_true")
@@ -206,7 +203,7 @@ def main():
     if args.query_level_output is not None:
         args.query_level_output.parent.mkdir(parents=True, exist_ok=True)
         ql.to_csv(args.query_level_output, index=False)
-    print(f"Sweep salvato in: {args.output}  |  query: {len(ql)}  |  soglie: {len(sweep)}")
+    print(f"Sweep saved to: {args.output}  |  queries: {len(ql)}  |  thresholds: {len(sweep)}")
 
 
 if __name__ == "__main__":
