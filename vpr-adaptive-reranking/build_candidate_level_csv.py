@@ -1,11 +1,3 @@
-"""
-Build a candidate-level CSV from pre-IM prediction .txt files, post-IM .torch files and Z_data.torch from retrieval.
-
-Base output columns:
-    query_id,candidate_path,l2_distance,retrieval_rank,num_inliers,rerank_rank_topK,is_positive,K
-
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -136,8 +128,6 @@ def load_matching_data(torch_file: str | Path) -> list[dict[str, Any]]:
 
     return list(data)
 
-
-# MAKE SURE "save_for_uncertainty" is active, otherwise z_data.torch WILL NOT BE SAVED and this function will fail. 
 def load_z_data_distances(z_data_path: str | Path | None) -> np.ndarray | None:
     """
     Load FAISS retrieval distances from z_data.torch.
@@ -145,8 +135,7 @@ def load_z_data_distances(z_data_path: str | Path | None) -> np.ndarray | None:
     Expected structure:
         z_data["distances"] with shape (num_queries, num_retrieved_candidates)
 
-    With faiss.IndexFlatL2 these values are the distances returned by FAISS,
-    usually squared L2 distances.
+    With faiss.IndexFlatL2 these values are the distances returned by squared L2 distances.
     """
     if z_data_path is None:
         return None
