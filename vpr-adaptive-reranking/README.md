@@ -15,11 +15,11 @@ python download.py
 
 # Adaptive Re-ranking
 
-Full re-ranking runs image matching (IM) on all top-20 candidates of every query — expensive. **Adaptive re-ranking** decides *per query* whether that's worth it: most methods buy the decision with one cheap IM on the top-1 candidate; `su` decides from retrieval scores alone, costing **zero** IM.
+Full re-ranking runs image matching (IM) on all top-20 candidates of every query — expensive. **Adaptive re-ranking** decides *per query* whether that's worth it.
 
 ## Building blocks
 
-Every workflow below starts with these two steps. Shown once here; the workflows just say "run this on split X."
+Every workflow below starts with these two steps. Shown once here.
 
 **Retrieval** — images → ranked candidates per query:
 ```sh
@@ -64,7 +64,7 @@ python match_queries_preds.py \
 
 ## Workflow 2 — Validation
 
-1. Retrieval + image matching on the **validation** split (different from train)
+1. Retrieval + image matching on the **validation** split
 2. Build the candidate-level CSV (same command as above, different split)
 3. Search thresholds — one script per family, or all at once:
 ```sh
@@ -118,4 +118,3 @@ python match_queries_preds.py \
 
 - `--model` / `--matcher` must match across all three workflows for the same regressor/threshold to apply.
 - `--inliers-dir` (Workflow 3, `run_all_methods.py`) replays precomputed `.torch` instead of live matching — use it whenever IM for that split already exists.
-- Uncertainty eval (AML students only): `python -m vpr_uncertainty.eval --preds-dir '<preds>' --inliers-dir '<inliers>' --z-data-path '<z_data.torch>'`
