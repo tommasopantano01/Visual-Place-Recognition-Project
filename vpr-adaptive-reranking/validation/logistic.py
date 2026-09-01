@@ -1,24 +1,15 @@
 """
-validation/logistic.py — logistic family on num_inliers_top1 (hard | help | cost_sensitive).
-Mirror of methods/logistic.py.
-
-No training. Loads the trained regressor JSON (downloaded from Google Drive by
-download_models.py into validation/<subdir>/) and grid-searches on the
+Loads the trained regressor JSON and grid-searches on the
 validation CSV the parameters that maximise the adaptive R@1:
   hard            rerank if P(hard) > tau                 tau in [0,1] step 0.01
   help            rerank if P(help) > tau                 tau in [0,1] step 0.01
   cost_sensitive  rerank if P(help) - alpha*P(hurts) > tau  alpha in [0,5] step 0.1, tau in [-1,1] step 0.01
 
 Writes in validation/<subdir>/:
-  threshold_<model>_<matcher>.csv   tau[,alpha], r1_adaptive_pct, reranked_pct, saving_pct  (read by deploy)
+  threshold_<model>_<matcher>.csv   tau[,alpha], r1_adaptive_pct, reranked_pct, saving_pct
   selection_<model>_<matcher>.csv   method, val_csv, metrics, params
   sweep_<model>_<matcher>.csv       full grid explored
 and updates validation/summary.csv.
-
-Usage (Colab cell):
-    !python VPR-Adaptive-ReRanking/validation/logistic.py --method help \\
-        --val-csv /content/drive/MyDrive/VPR/candidate_level/val_cosplace_superpoint-lg.csv \\
-        --model cosplace --matcher superpoint-lg
 """
 import argparse
 import sys
