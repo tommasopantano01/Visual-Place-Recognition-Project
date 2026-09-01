@@ -1,14 +1,13 @@
 """
-check_performance.py — Statistiche finali su un output di adaptive reranking.
+check_performance.py — Final statistics for an adaptive reranking output:
+  - where the queries stopped (budget distribution)
+  - the image matching cost and the saving vs full rerank
+  - the ADAPTIVE recall@N and, as a reference, the BASE one (retrieval only)
 
-Legge le cartelle top{K}/ prodotte dal deploy e riporta, in un colpo solo:
-  - dove si sono fermate le query (distribuzione dei budget)
-  - il costo in image matching e il risparmio rispetto al full rerank
-  - la recall@N ADATTIVA e, come riferimento, quella BASE (solo retrieval)
-
-Un positivo e' determinato dalla sezione "Positives paths" del .txt di
-retrieval; se quella sezione manca (retrieval lanciato senza label) si passa
-automaticamente alla distanza UTM, con la stessa soglia usata da reranking.py.
+A positive is determined from the "Positives paths" section of the retrieval
+.txt; if that section is missing (retrieval run without labels), it falls
+back automatically to the UTM distance, with the same threshold used by
+reranking.py.
 """
 
 import argparse
@@ -25,12 +24,8 @@ from util import get_utm_from_path, compute_distance
 
 
 def parse_prediction_txt(txt_file):
-    """Legge un .txt di retrieval -> (query_path, pred_paths, positives).
-
-    positives e' None se la sezione "Positives paths" non c'e' proprio
-    (retrieval lanciato senza label): solo in quel caso serve il fallback sulla
-    distanza. Un set vuoto significa invece "query senza nessun positivo", che
-    e' un'informazione valida e va rispettata."""
+    """Reads a retrieval .txt -> (query_path, pred_paths, positives).
+    """
     query_path = None
     pred_paths, positive_paths = [], []
     has_positives_section = False
@@ -60,16 +55,12 @@ def parse_prediction_txt(txt_file):
 
 
 def positives_by_distance(query_path, pred_paths, dist_threshold):
-    """Fallback: un candidato e' positivo se entro dist_threshold metri (UTM)."""
     q_utm = get_utm_from_path(query_path)
     return {p for p in pred_paths
             if compute_distance(q_utm, get_utm_from_path(p)) <= dist_threshold}
 
 
 def find_query_file(adaptive_dir, q_id):
-    """Trova (path, budget) del file della query q_id tra le cartelle topK.
-    budget = numero di image matching effettivamente eseguiti per quella query
-    (0 = decisione presa dal solo retrieval). (None, None) se non c'e'."""
     for folder in sorted(glob(os.path.join(adaptive_dir, "top*"))):
         name = os.path.basename(folder)
         if not name[3:].isdigit():
@@ -83,44 +74,42 @@ def find_query_file(adaptive_dir, q_id):
 
 
 def final_ranking(fp, pred_paths, num_preds):
-    """Lista dei candidati (path) nell'ordine finale, lunga num_preds.
+    """List of candidates (paths) in final order, num_preds long.
 
-    .torch: primi k riordinati per num_inliers desc (tie-break: rank di
-            retrieval crescente), poi coda in ordine di retrieval.
-    .txt  : ordine di retrieval puro (nessun image matching fatto).
+    .torch: the first k reordered by num_inliers desc (tie-break: ascending
+            retrieval rank), then the tail in retrieval order.
+    .txt  : pure retrieval order (no image matching done).
     """
     if fp.endswith(".txt"):
         return pred_paths[:num_preds]
 
     data = torch.load(fp, map_location="cpu", weights_only=False)
-    k = len(data)  # candidati effettivamente matchati (budget)
+    k = len(data)  # candidates actually matched (budget)
 
     inliers = np.array([int(d["num_inliers"]) for d in data])
-    retr_rank = np.arange(k)  # 0..k-1 = ordine di retrieval dei primi k
-    # ordina per inliers desc, a parita' per rank di retrieval asc
+    retr_rank = np.arange(k)  # 0..k-1 = retrieval order of the first k
     order = np.lexsort((retr_rank, -inliers))
 
-    reranked_head = [pred_paths[i] for i in order]          # primi k riordinati
-    tail = pred_paths[k:num_preds]                          # coda non rerankata
+    reranked_head = [pred_paths[i] for i in order]
+    tail = pred_paths[k:num_preds]
     return reranked_head + tail
 
 
 def recall_at_n(ranking, positives, n):
-    """1 se almeno un positivo nei primi n del ranking."""
+    """1 if at least one positive is in the first n of the ranking."""
     return int(any(p in positives for p in ranking[:n]))
 
 
 def evaluate(preds_dir, adaptive_dir, num_preds=20, recall_values=(1, 5, 10, 20),
              positive_dist_threshold=25):
-    """Valuta un output di adaptive reranking e ritorna un dict di metriche.
-    Nessuna stampa: usato sia da main() sia da run_all_methods.py."""
+    """Evaluates an adaptive reranking output and returns a dict of metrics."""
     preds_dir, adaptive_dir = Path(preds_dir), Path(adaptive_dir)
 
     q_ids = sorted((Path(f).stem for f in glob(str(preds_dir / "*.txt"))), key=int)
     if not q_ids:
-        raise RuntimeError(f"Nessun .txt in {preds_dir}")
+        raise RuntimeError(f"No .txt in {preds_dir}")
     if not adaptive_dir.exists():
-        raise RuntimeError(f"Cartella di output non trovata: {adaptive_dir}")
+        raise RuntimeError(f"Output folder not found: {adaptive_dir}")
 
     recalls = {n: 0 for n in recall_values}
     base_recalls = {n: 0 for n in recall_values}
@@ -138,7 +127,7 @@ def evaluate(preds_dir, adaptive_dir, num_preds=20, recall_values=(1, 5, 10, 20)
         query_path, pred_paths, positives = parse_prediction_txt(preds_dir / f"{q_id}.txt")
         if positives is None:
             if query_path is None:
-                raise RuntimeError(f"{q_id}.txt: ne' 'Positives paths' ne' 'Query path'")
+                raise RuntimeError(f"{q_id}.txt: neither 'Positives paths' nor 'Query path'")
             positives = positives_by_distance(query_path, pred_paths, positive_dist_threshold)
             used_distance_fallback = True
         ranking = final_ranking(fp, pred_paths, num_preds)
@@ -150,7 +139,7 @@ def evaluate(preds_dir, adaptive_dir, num_preds=20, recall_values=(1, 5, 10, 20)
 
     if not n_eval:
         raise RuntimeError(
-            f"Nessuna query trovata in {adaptive_dir}: il deploy non ha prodotto output.")
+            f"No query found in {adaptive_dir}: the deploy did not produce any output.")
 
     im_full = n_eval * num_preds
     return {
@@ -169,25 +158,25 @@ def evaluate(preds_dir, adaptive_dir, num_preds=20, recall_values=(1, 5, 10, 20)
 
 def print_report(res, recall_values, positive_dist_threshold=25):
     n_eval = res["n_queries"]
-    print(f"\nQuery valutate: {n_eval}" +
-          (f"  (mancanti: {res['missing']})" if res["missing"] else ""))
+    print(f"\nQueries evaluated: {n_eval}" +
+          (f"  (missing: {res['missing']})" if res["missing"] else ""))
     if res["distance_fallback"]:
-        print(f"  positivi determinati per distanza UTM <= {positive_dist_threshold} m")
+        print(f"  positives determined by UTM distance <= {positive_dist_threshold} m")
 
-    print("\nDistribuzione stop (dove si sono fermate le query):")
+    print("\nStop distribution (where the queries stopped):")
     for b in sorted(res["stop_counts"]):
         c = res["stop_counts"][b]
-        label = "top-0 (nessun IM)" if b == 0 else f"top-{b}"
+        label = "top-0 (no IM)" if b == 0 else f"top-{b}"
         print(f"  {label:<18}: {c:5d}  ({100*c/n_eval:.1f}%)")
 
-    print("\nCosto (image matching):")
-    print(f"  IM adattivi:       {res['im_adaptive']:6d}")
-    print(f"  IM full-rerank:    {res['im_full']:6d}   (= {n_eval} query x "
+    print("\nCost (image matching):")
+    print(f"  Adaptive IM:       {res['im_adaptive']:6d}")
+    print(f"  Full-rerank IM:    {res['im_full']:6d}   (= {n_eval} queries x "
           f"{res['im_full'] // n_eval})")
-    print(f"  IM medi per query: {res['matches_per_query']:.2f}")
-    print(f"  SAVING:            {res['saving_pct']:.1f}%   (IM risparmiati vs full-rerank)")
+    print(f"  Avg IM per query:  {res['matches_per_query']:.2f}")
+    print(f"  SAVING:            {res['saving_pct']:.1f}%   (IM saved vs full-rerank)")
 
-    print("\nRecall (adattiva vs base = solo retrieval):")
+    print("\nRecall (adaptive vs base = retrieval only):")
     for n in recall_values:
         r_ad, r_ba = res["recall"][n], res["base_recall"][n]
         print(f"  R@{n:<3} = {r_ad:6.2f}%   (base {r_ba:6.2f}%,  delta {r_ad - r_ba:+.2f})")
@@ -200,13 +189,13 @@ def main(args):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Statistiche adaptive reranking")
+    p = argparse.ArgumentParser(description="Adaptive reranking statistics")
     p.add_argument("--preds-dir", required=True)
     p.add_argument("--adaptive-RR-dir", required=True)
     p.add_argument("--num-preds", type=int, default=20)
     p.add_argument("--recall-values", type=int, nargs="+", default=[1, 5, 10, 20])
     p.add_argument("--positive-dist-threshold", type=int, default=25,
-                   help="metri; usato solo se il .txt non ha la sezione 'Positives paths'")
+                   help="meters; used only if the .txt has no 'Positives paths' section")
     return p.parse_args()
 
 
