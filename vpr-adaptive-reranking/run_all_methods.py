@@ -26,7 +26,6 @@ SUMMARY_COLUMNS = [
 
 
 def resolve(template, **kw):
-    """Template -> path esistente (glob ammesso). None se manca o e' ambiguo."""
     if not template:
         return None
     pattern = template.format(**kw)
@@ -35,13 +34,12 @@ def resolve(template, **kw):
         if len(hits) == 1:
             return hits[0]
         if len(hits) > 1:
-            print(f"  [ambiguo] {pattern} -> {len(hits)} risultati")
+            print(f"  [ambiguous] {pattern} -> {len(hits)} results")
         return None
     return pattern if Path(pattern).exists() else None
 
 
 def run_one(method, model, matcher, paths, args):
-    """Esegue deploy + valutazione per una combinazione. Ritorna una riga dict."""
     out_dir = Path(args.output_root) / method / f"{model}_{matcher}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -63,7 +61,7 @@ def run_one(method, model, matcher, paths, args):
     cmd = build_command(method, cli)
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:
-        err = (res.stderr.strip().splitlines() or ["errore sconosciuto"])[-1]
+        err = (res.stderr.strip().splitlines() or ["unknown error"])[-1]
         raise RuntimeError(err)
 
     ev = evaluate(paths["preds"], out_dir, num_preds=args.num_preds,
@@ -87,14 +85,14 @@ def run_one(method, model, matcher, paths, args):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Testa tutti i metodi su tutte le coppie (model, matcher)")
+    p = argparse.ArgumentParser(description="Tests every method on every (model, matcher) pair")
     p.add_argument("--preds-dir-template", required=True,
-                   help="cartella dei .txt di retrieval; placeholder {model} {matcher} {dataset}")
+                   help="folder of the retrieval .txt files; placeholders {model} {matcher} {dataset}")
     p.add_argument("--inliers-dir-template", default=None,
-                   help="OFFLINE: cartella dei .torch top-20 gia' calcolati (consigliato)")
+                   help="OFFLINE: folder of the already computed top-20 .torch files (recommended)")
     p.add_argument("--z-data-template", default=None,
-                   help="z_data.torch, necessario solo per su / su_inliers")
-    p.add_argument("--dataset", default="", help="valore per il placeholder {dataset}")
+                   help="z_data.torch, needed only for su / su_inliers")
+    p.add_argument("--dataset", default="", help="value for the {dataset} placeholder")
     p.add_argument("--output-root", required=True)
     p.add_argument("--methods", nargs="+", default=DEFAULT_METHODS,
                    choices=list(METHOD_DISPATCH.keys()))
@@ -122,19 +120,19 @@ def main():
             print("\n" + "=" * 78)
             print(f"{model} / {matcher}")
             print(f"  preds   : {paths['preds']}")
-            print(f"  inliers : {paths['inliers'] or '(modalita LIVE: matching eseguito ora)'}")
+            print(f"  inliers : {paths['inliers'] or '(LIVE mode: matching run now)'}")
             print(f"  z_data  : {paths['z_data'] or '-'}")
             print("=" * 78)
 
             if paths["preds"] is None:
                 for m in a.methods:
-                    status.append((m, model, matcher, "saltato: preds-dir non trovata"))
+                    status.append((m, model, matcher, "skipped: preds-dir not found"))
                 continue
 
             for method in a.methods:
                 if method in SU_METHODS and not paths["z_data"]:
-                    status.append((method, model, matcher, "saltato: z_data non trovato"))
-                    print(f"  [saltato] {method}: z_data non trovato")
+                    status.append((method, model, matcher, "skipped: z_data not found"))
+                    print(f"  [skipped] {method}: z_data not found")
                     continue
                 print(f"\n--- {method} ---")
                 try:
@@ -146,10 +144,10 @@ def main():
                     status.append((method, model, matcher, "ok"))
                 except Exception as e:
                     msg = str(e).splitlines()[0] if str(e) else type(e).__name__
-                    kind = "saltato" if "non trovat" in msg or "not found" in msg else "FALLITO"
+                    kind = "skipped" if "not found" in msg or "non trovat" in msg else "FAILED"
                     status.append((method, model, matcher, f"{kind}: {msg}"))
                     print(f"  [{kind}] {msg}")
-                    if kind == "FALLITO":
+                    if kind == "FAILED":
                         traceback.print_exc()
 
     summary_csv = Path(a.output_root) / "summary_deploy.csv"
@@ -160,7 +158,7 @@ def main():
         for r in sorted(rows, key=lambda r: (r["model"], r["matcher"], r["method"])):
             w.writerow(r)
 
-    print("\n" + "=" * 78 + "\nRIEPILOGO\n" + "=" * 78)
+    print("\n" + "=" * 78 + "\nSUMMARY\n" + "=" * 78)
     if rows:
         print(f"{'method':<24}{'model':<10}{'matcher':<15}{'R@1':>7}{'base':>8}"
               f"{'IM/q':>7}{'saving':>8}")
@@ -169,15 +167,15 @@ def main():
                   f"{r['adaptive_r1_pct']:>7.2f}{r['base_r1_pct']:>8.2f}"
                   f"{r['matches_per_query']:>7.2f}{r['saving_pct']:>7.1f}%")
     n_ok = sum(1 for s in status if s[3] == "ok")
-    n_fail = sum(1 for s in status if s[3].startswith("FALLITO"))
+    n_fail = sum(1 for s in status if s[3].startswith("FAILED"))
     n_skip = len(status) - n_ok - n_fail
     if n_skip or n_fail:
-        print("\nNon eseguiti:")
+        print("\nNot run:")
         for method, model, matcher, st in status:
             if st != "ok":
                 print(f"  {method:<24}{model:<10}{matcher:<15}{st}")
-    print(f"\n{n_ok} ok, {n_skip} saltati, {n_fail} falliti.")
-    print(f"Tabella riassuntiva: {summary_csv}")
+    print(f"\n{n_ok} ok, {n_skip} skipped, {n_fail} failed.")
+    print(f"Summary table: {summary_csv}")
     sys.exit(1 if n_fail else 0)
 
 
