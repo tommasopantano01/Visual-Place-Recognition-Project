@@ -1,24 +1,3 @@
-"""
-run_all_methods.py — Testa TUTTI i metodi su TUTTE le coppie (model, matcher)
-con un solo comando, e scrive una tabella riassuntiva.
-
-Pensato per la modalita' OFFLINE: se l'image matching top-20 e' gia' stato
-calcolato, l'intera batteria gira in pochi minuti su CPU.
-
-    python VPR-Adaptive-ReRanking/run_all_methods.py \
-      --preds-dir-template   "/content/drive/MyDrive/VPR/preds/{model}_{dataset}" \
-      --inliers-dir-template "/content/drive/MyDrive/VPR/matching_results/{model}_{dataset}_{matcher}" \
-      --z-data-template      "/content/drive/MyDrive/VPR/logs/{model}_{dataset}/z_data.torch" \
-      --dataset svox_training --output-root /content/drive/MyDrive/VPR/adaptive_test
-
-Nei template sono sostituiti {model}, {matcher} e {dataset}; i wildcard glob (*)
-sono ammessi. Le combinazioni i cui file non esistono vengono saltate e
-elencate alla fine, quindi si puo' lanciare anche a dati parziali.
-
-Output:
-  <output-root>/<method>/<model>_<matcher>/top{K}/...   risultati del deploy
-  <output-root>/summary_deploy.csv                       tabella riassuntiva
-"""
 import argparse
 import csv
 import subprocess
@@ -35,7 +14,6 @@ from check_performance import evaluate
 
 MODELS = ("cosplace", "megaloc")
 MATCHERS = ("superpoint-lg", "loftr")
-# 'local' non e' implementato in validation: escluso dal default
 DEFAULT_METHODS = [m for m in METHOD_DISPATCH if m != "local"]
 SU_METHODS = ("su", "su_inliers")
 
