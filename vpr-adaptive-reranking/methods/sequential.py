@@ -27,8 +27,6 @@ import json
 import sys
 from glob import glob
 from pathlib import Path
-from _outputs import canon_model, canon_matcher
-
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 sys.path.append(str(Path(__file__).resolve().parent.parent / "validation"))
 from _common import (
@@ -37,6 +35,7 @@ from _common import (
     sequential_features, apply_sigmoid_vector,
     save_results_torch, query_already_done,
 )
+from _outputs import canon_model, canon_matcher
 
 _VALIDATION_DIR = Path(__file__).resolve().parent.parent / "validation" / "sequential"
 
