@@ -1,12 +1,4 @@
-# Visual Place Recognition project
-
-> [!NOTE]
-> ### Dataset filename convention
-> `@ UTM_easting @ UTM_northing @ UTM_zone_number @ UTM_zone_letter @ latitude @ longitude @ pano_id @ tile_num @ heading @ pitch @ roll @ height @ timestamp @ note @ extension`
-> Only the UTM coordinates are required; other fields can be empty.
-
-> [!WARNING]
-> Some models require code implementation — identify which ones and where.
+# Visual Place Recognition project Extension
 
 ## Install
 
@@ -16,7 +8,7 @@ cd Visual-Place-Recognition-Project/image-matching-models
 pip install -e .[all]
 pip install faiss-cpu
 cd ..
-python download.py   # datasets + pretrained regressors
+python download.py
 ```
 
 ---
@@ -24,8 +16,6 @@ python download.py   # datasets + pretrained regressors
 # Adaptive Re-ranking
 
 Full re-ranking runs image matching (IM) on all top-20 candidates of every query — expensive. **Adaptive re-ranking** decides *per query* whether that's worth it: most methods buy the decision with one cheap IM on the top-1 candidate; `su` decides from retrieval scores alone, costing **zero** IM.
-
-Code lives in [`vpr-adaptive-reranking/`](./vpr-adaptive-reranking).
 
 ## Building blocks
 
