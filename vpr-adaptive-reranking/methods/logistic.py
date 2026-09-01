@@ -1,5 +1,5 @@
 """
-methods/logistic.py — Deploy of the logistic family on num_inliers_top1
+methods/logistic.py — Test of the logistic family on num_inliers_top1
 (hard | help | cost_sensitive).
 
 Rule:
@@ -9,21 +9,19 @@ Rule:
 
 The regressor is read from the model JSON in validation/<subdir>/, the
 parameters (tau, alpha) from validation/<subdir>/threshold_<model>_<matcher>.csv.
-
-    python VPR-Adaptive-ReRanking/methods/logistic.py --method help \
-        --preds-dir <preds/> --model cosplace --matcher superpoint-lg \
-        --inliers-dir <top20 .torch/> --output-dir <out/>
 """
 import argparse
 import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent / "validation"))
 from _common import (
     load_threshold_csv, load_model_json, run_logistic_single,
     run_im_top1_with_results, apply_sigmoid, partition_by_probability,
     save_results_torch, run_im_topN_subset, print_summary, budget_folder,
 )
+from _outputs import canon_model, canon_matcher
 
 _ARR_DIR = Path(__file__).resolve().parent.parent
 
@@ -56,18 +54,18 @@ def parse_args():
     return parser.parse_args()
 
 
-def _resolve(args):
-    """Threshold and model JSON paths, with clear messages if they are missing."""
+def _resolve(args, model, matcher):
+    """Threshold and model JSON paths"""
     subdir, json_tmpl = METHODS[args.method]
     val_dir = _ARR_DIR / "validation" / subdir
-    threshold_csv = Path(args.threshold_csv or val_dir / f"threshold_{args.model}_{args.matcher}.csv")
+    threshold_csv = Path(args.threshold_csv or val_dir / f"threshold_{model}_{matcher}.csv")
     model_json = Path(args.model_json or
-                      val_dir / json_tmpl.format(model=args.model, matcher=args.matcher))
+                      val_dir / json_tmpl.format(model=model, matcher=matcher))
     if not threshold_csv.exists():
         raise FileNotFoundError(
             f"Threshold not found: {threshold_csv}\n"
             f"  -> run first: validation/logistic.py --method {args.method} "
-            f"--model {args.model} --matcher {args.matcher} --val-csv <candidate_level_val.csv>")
+            f"--model {model} --matcher {matcher} --val-csv <candidate_level_val.csv>")
     if not model_json.exists():
         raise FileNotFoundError(
             f"Model JSON not found: {model_json}\n"
@@ -76,13 +74,14 @@ def _resolve(args):
 
 
 def main(args):
-    threshold_csv, model_json = _resolve(args)
+    model, matcher = canon_model(args.model), canon_matcher(args.matcher)
+    threshold_csv, model_json = _resolve(args, model, matcher)
     hp = load_threshold_csv(threshold_csv)
 
     if args.method in ("hard", "help"):
         tau = hp["tau"]
         regressor = load_model_json(model_json)
-        print(f"tau (P_{args.method}) = {tau}  [{args.model}/{args.matcher}]")
+        print(f"tau (P_{args.method}) = {tau}  [{model}/{matcher}]")
         run_logistic_single(args.preds_dir, tau, regressor, args.matcher, args.device,
                             args.im_size, args.num_preds, args.output_dir,
                             inliers_dir=args.inliers_dir)
@@ -97,7 +96,7 @@ def main(args):
     else:                                  # flat: {"help": {...}, "hurts": {...}}
         models = data
     hurt_key = "hurts" if "hurts" in models else "hurt"
-    print(f"alpha = {lam}   tau = {tau}   [{args.model}/{args.matcher}]")
+    print(f"alpha = {lam}   tau = {tau}   [{model}/{matcher}]")
 
     results_top1 = run_im_top1_with_results(args.preds_dir, args.matcher, args.device,
                                             args.im_size, inliers_dir=args.inliers_dir)
