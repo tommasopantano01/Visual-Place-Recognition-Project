@@ -1,27 +1,27 @@
 """
-_common.py — Motore condiviso da tutti i metodi di adaptive reranking.
+_common.py — Shared engine for all adaptive reranking methods.
 
-CONVENZIONE DI OUTPUT: una cartella per budget dentro --output-dir.
-  output-dir/top1/<id>.torch    query fermate al top-1 (skip rerank)
-  output-dir/top5/<id>.torch    stop intermedio sequenziale (5 candidati)
-  output-dir/top10/<id>.torch   stop intermedio sequenziale (10 candidati)
-  output-dir/top20/<id>.torch   rerank completo (20 candidati)
+OUTPUT CONVENTION: one folder per budget inside --output-dir.
+  output-dir/top1/<id>.torch    queries stopped at top-1 (skip rerank)
+  output-dir/top5/<id>.torch    sequential intermediate stop (5 candidates)
+  output-dir/top10/<id>.torch   sequential intermediate stop (10 candidates)
+  output-dir/top20/<id>.torch   full rerank (20 candidates)
 
-Ogni query finisce in ESATTAMENTE una cartella topK, dove K = quanti
-candidati sono stati passati all'image matching per quella query. Il .torch
-contiene K risultati IM reali. check_performance.py conta i file in ogni
-topK per ricavare quante query si sono fermate a ciascun budget.
+Each query ends up in EXACTLY one topK folder, where K = how many candidates
+were passed to image matching for that query. The .torch file contains K real
+IM results. check_performance.py counts the files in each topK to work out
+how many queries stopped at each budget.
 
-Eccezione: i metodi che decidono lo skip SENZA fare alcun IM (solo `su`, che
-decide dalle sole distanze L2 del retrieval) salvano il .txt di retrieval in
-top0/ — budget 0 perche' per quelle query non e' stato fatto NESSUN image
-matching. check_performance.py gestisce entrambi i casi: .torch -> ranking per
-inlier, .txt -> ordine di retrieval.
+Exception: methods that decide to skip WITHOUT doing any IM (only `su`, which
+decides from the retrieval L2 distances alone) save the retrieval .txt in
+top0/ — budget 0 because for those queries NO image matching was done.
+check_performance.py handles both cases: .torch -> ranking by inliers, .txt ->
+retrieval order.
 
-DUE MODALITA' DI ESECUZIONE
-  LIVE     esegue davvero il matcher (GPU + image-matching-models + immagini).
-  OFFLINE  --inliers-dir <cartella .torch top-20 gia' calcolati>: nessun
-           matching, i primi K candidati vengono letti dai file esistenti.
+TWO EXECUTION MODES
+  LIVE     actually runs the matcher (GPU + image-matching-models + images).
+  OFFLINE  --inliers-dir <folder of already computed top-20 .torch files>: no
+           matching, the first K candidates are read from the existing files.
 """
 
 import os
@@ -48,14 +48,14 @@ except ImportError:
     class _TorchStub:
         def __getattr__(self, name):
             raise ImportError(
-                "torch non disponibile: serve per I/O .torch e image matching."
+                "torch not available: needed for .torch I/O and image matching."
             )
     torch = _TorchStub()
 
 try:
     from tqdm import tqdm
 except ImportError:
-    def tqdm(x, *a, **k):   # no-op iterabile se tqdm manca
+    def tqdm(x, *a, **k):   # iterable no-op if tqdm is missing
         return x
 
 try:
@@ -68,39 +68,39 @@ except ImportError as _e:
 
     def _missing_matcher(*_a, **_k):
         raise ImportError(
-            "Questa funzione richiede image-matching-models (util, matching), "
-            f"non disponibili: {_MATCHER_IMPORT_ERROR}. Training/validation/decisione "
-            "SU non ne hanno bisogno (il matching vero passa per match_queries_preds.py)."
+            "This function requires image-matching-models (util, matching), "
+            f"not available: {_MATCHER_IMPORT_ERROR}. Training/validation/SU "
+            "decision do not need it (real matching goes through match_queries_preds.py)."
         )
     get_matcher = _missing_matcher
     read_file_preds = _missing_matcher
 
-# compatibilita': alcune funzioni potrebbero controllare _IM_DEPS_OK
+# compatibility: some functions might check _IM_DEPS_OK
 _IM_DEPS_OK = _TORCH_OK and _MATCHER_OK
 
 
 # ============================================================
-# LETTURA QUERY E PARAMETRI 
+# QUERY AND PARAMETER READING
 # ============================================================
 
 def get_query_ids(preds_dir):
-    """Lista degli id query (nomi file senza estensione) in preds_dir, ordinati."""
+    """List of query ids (file names without extension) in preds_dir, sorted."""
     txt_files = glob(os.path.join(preds_dir, "*.txt"))
     return sorted((Path(f).stem for f in txt_files), key=int)
 
 
 def load_threshold_csv(path):
-    """Legge threshold_<model>_<matcher>.csv in due formati:
-      1) CSV piatto  -> una riga, colonne numeriche (es. youden: 'threshold').
-      2) JSON annidato (validation SU/logistic) -> estrae i parametri del
-         criterio calibrato (tau, ed eventualmente alpha) e li appiattisce.
-    Ritorna sempre un dict {nome: float}.
+    """Reads threshold_<model>_<matcher>.csv in two formats:
+      1) Flat CSV  -> one row, numeric columns (e.g. youden: 'threshold').
+      2) Nested JSON (validation SU/logistic) -> extracts the parameters of
+         the calibrated criterion (tau, and possibly alpha) and flattens them.
+    Always returns a dict {name: float}.
     """
     with open(path) as f:
         head = f.read(1).lstrip()
         f.seek(0)
 
-        # --- formato JSON (validation SU/logistic) ---
+        # --- JSON format (validation SU/logistic) ---
         if head == "{":
             data = json.load(f)
             fs = data["feature_sets"]
@@ -108,8 +108,8 @@ def load_threshold_csv(path):
             crit = fs[fs_name]["criteria"]
             if not crit:
                 raise ValueError(
-                    f"{path}: nessun criterio calibrato nel threshold JSON "
-                    "(la validation ha saltato tutti i criteri)."
+                    f"{path}: no calibrated criterion in the threshold JSON "
+                    "(validation skipped every criterion)."
                 )
             crit_name = next(iter(crit))
             params = crit[crit_name]
@@ -122,52 +122,53 @@ def load_threshold_csv(path):
                 out["threshold"] = float(params["threshold"])
             if not out:
                 raise ValueError(
-                    f"{path}: criterio '{crit_name}' senza parametri numerici "
-                    f"riconosciuti ({list(params.keys())})."
+                    f"{path}: criterion '{crit_name}' has no recognised numeric "
+                    f"parameters ({list(params.keys())})."
                 )
             return out
 
-        # --- formato CSV piatto (una riga) ---
+        # --- flat CSV format (one row) ---
         row = next(csv.DictReader(f))
         return {k: float(v) for k, v in row.items()}
 
 
 def load_model_json(path):
-    """Legge model.json (coefficienti di uno o piu' regressori logistici)."""
+    """Reads model.json (coefficients of one or more logistic regressors)."""
     with open(path) as f:
         return json.load(f)
 
 
 def budget_folder(output_dir, budget):
-    """Ritorna output_dir/top{budget}/ (creandola se manca). budget = numero
-    di candidati effettivamente matchati per quelle query (1/5/10/20)."""
+    """Returns output_dir/top{budget}/ (creating it if missing). budget = the
+    number of candidates actually matched for those queries (1/5/10/20)."""
     d = os.path.join(output_dir, f"top{budget}")
     os.makedirs(d, exist_ok=True)
     return d
 
 
 # ============================================================
-# BACKEND IM — due modalita'
+# IM BACKEND — two modes
 #
-#   LIVE    (default): esegue davvero il matcher. Serve GPU +
-#                      image-matching-models + le immagini dei dataset.
-#   OFFLINE (--inliers-dir): NON esegue nulla, legge i .torch top-20 gia'
-#                      calcolati e ne prende i primi K. Identico nei numeri,
-#                      secondi invece di ore, gira su CPU.
+#   LIVE    (default): actually runs the matcher. Needs GPU +
+#                      image-matching-models + the dataset images.
+#   OFFLINE (--inliers-dir): does NOT run anything, reads the already
+#                      computed top-20 .torch files and takes the first K.
+#                      Identical numbers, seconds instead of hours, runs on CPU.
 #
-# In OFFLINE i risultati salvati sono "slim" ({'num_inliers': int}): e' l'unico
-# campo che check_performance.py / reranking.py leggono, e tiene l'output
-# piccolo (i .torch completi contengono keypoint e descrittori).
+# In OFFLINE the saved results are "slim" ({'num_inliers': int}): it is the
+# only field check_performance.py / reranking.py read, and it keeps the
+# output small (the full .torch files contain keypoints and descriptors).
 # ============================================================
 
 def slim_result(result):
-    """Riduce un risultato IM al solo campo usato dal reranking."""
+    """Reduces an IM result to just the field used by the reranking."""
     return {"num_inliers": int(result["num_inliers"])}
 
 
 def load_precomputed_results(inliers_dir, query_id, k=None):
-    """Legge inliers_dir/<query_id>.torch (IM top-20 gia' calcolato) e ritorna
-    la lista slim dei primi k risultati. None se il file non esiste."""
+    """Reads inliers_dir/<query_id>.torch (already computed top-20 IM) and
+    returns the slim list of the first k results. None if the file does not
+    exist."""
     fp = os.path.join(str(inliers_dir), f"{query_id}.torch")
     if not os.path.exists(fp):
         return None
@@ -177,12 +178,12 @@ def load_precomputed_results(inliers_dir, query_id, k=None):
 
 
 def warn_missing(missing_ids, inliers_dir, what="query"):
-    """Avviso unico e leggibile se mancano .torch precalcolati."""
+    """A single readable warning if precomputed .torch files are missing."""
     if not missing_ids:
         return
     sample = ", ".join(missing_ids[:5]) + (" ..." if len(missing_ids) > 5 else "")
-    print(f"  [attenzione] {len(missing_ids)} {what} senza .torch in {inliers_dir} "
-          f"(escluse): {sample}")
+    print(f"  [warning] {len(missing_ids)} {what} without .torch in {inliers_dir} "
+          f"(excluded): {sample}")
 
 
 # ============================================================
@@ -190,10 +191,10 @@ def warn_missing(missing_ids, inliers_dir, what="query"):
 # ============================================================
 
 def run_im_top1_all(preds_dir, matcher_name, device="cpu", im_size=512):
-    """IM tra query e candidato top-1 per OGNI query. Ritorna {id: num_inliers}."""
+    """IM between query and top-1 candidate for EVERY query. Returns {id: num_inliers}."""
     matcher = get_matcher(matcher_name, device=device)
     inliers_by_query = {}
-    for q_id in tqdm(get_query_ids(preds_dir), desc="IM top-1 su tutte le query"):
+    for q_id in tqdm(get_query_ids(preds_dir), desc="IM top-1 on all queries"):
         txt_file = os.path.join(preds_dir, f"{q_id}.txt")
         q_path, pred_paths = read_file_preds(txt_file)
         img0 = matcher.load_image(q_path, resize=im_size)
@@ -204,12 +205,12 @@ def run_im_top1_all(preds_dir, matcher_name, device="cpu", im_size=512):
 
 def run_im_top1_with_results(preds_dir, matcher_name, device="cpu", im_size=512,
                               query_ids=None, inliers_dir=None):
-    """Come run_im_top1_all, ma ritorna il risultato IM completo (non solo
-    num_inliers): serve sia per salvare il .torch delle query skippate sia al
-    sequenziale per accumulare. Se query_ids e' dato, solo quel sottoinsieme.
-    Ritorna {id: result_dict}.
+    """Like run_im_top1_all, but returns the full IM result (not just
+    num_inliers): needed both to save the .torch of skipped queries and for
+    the sequential method to accumulate. If query_ids is given, only that
+    subset. Returns {id: result_dict}.
 
-    inliers_dir: modalita' OFFLINE, legge il top-1 dai .torch precalcolati."""
+    inliers_dir: OFFLINE mode, reads the top-1 from the precomputed .torch files."""
     if query_ids is None:
         query_ids = get_query_ids(preds_dir)
     if not query_ids:
@@ -224,12 +225,12 @@ def run_im_top1_with_results(preds_dir, matcher_name, device="cpu", im_size=512,
                 continue
             results_by_query[q_id] = r[0]
         warn_missing(missing, inliers_dir)
-        print(f"  IM top-1 letto da .torch precalcolati: {len(results_by_query)} query")
+        print(f"  IM top-1 read from precomputed .torch: {len(results_by_query)} queries")
         return results_by_query
 
     matcher = get_matcher(matcher_name, device=device)
     results_by_query = {}
-    for q_id in tqdm(query_ids, desc="IM top-1 su tutte le query"):
+    for q_id in tqdm(query_ids, desc="IM top-1 on all queries"):
         txt_file = os.path.join(preds_dir, f"{q_id}.txt")
         q_path, pred_paths = read_file_preds(txt_file)
         img0 = matcher.load_image(q_path, resize=im_size)
@@ -242,13 +243,13 @@ def run_im_top1_with_results(preds_dir, matcher_name, device="cpu", im_size=512,
 
 def run_im_extend(preds_dir, query_ids, accumulated_results, start_rank, end_rank,
                    matcher_name, device="cpu", im_size=512, inliers_dir=None):
-    """Estende accumulated_results (id -> lista di risultati IM gia' fatti)
-    matchando i candidati da start_rank a end_rank (1-indexed, inclusivi) SOLO
-    per le query in query_ids. Modifica accumulated_results in place.
+    """Extends accumulated_results (id -> list of IM results already done) by
+    matching candidates from start_rank to end_rank (1-indexed, inclusive)
+    ONLY for the queries in query_ids. Modifies accumulated_results in place.
 
-    Ritorna la lista degli id che NON e' stato possibile estendere (solo in
-    modalita' offline: .torch mancante o con meno di end_rank candidati). Il
-    chiamante deve finalizzarli al budget gia' raggiunto."""
+    Returns the list of ids that could NOT be extended (offline mode only:
+    missing .torch or with fewer than end_rank candidates). The caller must
+    finalize them at the budget already reached."""
     if not query_ids:
         return []
 
@@ -262,11 +263,11 @@ def run_im_extend(preds_dir, query_ids, accumulated_results, start_rank, end_ran
             accumulated_results[q_id].extend(res[start_rank - 1:end_rank])
         if failed:
             warn_missing(failed, inliers_dir,
-                         what=f"query senza candidati fino al rank {end_rank}")
+                         what=f"queries without candidates up to rank {end_rank}")
         return failed
 
     matcher = get_matcher(matcher_name, device=device)
-    for q_id in tqdm(query_ids, desc=f"IM candidati {start_rank}-{end_rank}"):
+    for q_id in tqdm(query_ids, desc=f"IM candidates {start_rank}-{end_rank}"):
         txt_file = os.path.join(preds_dir, f"{q_id}.txt")
         q_path, pred_paths = read_file_preds(txt_file)
         img0 = matcher.load_image(q_path, resize=im_size)
@@ -283,14 +284,14 @@ def run_im_extend(preds_dir, query_ids, accumulated_results, start_rank, end_ran
 # ============================================================
 
 def save_results_torch(query_id, results, folder):
-    """Salva la lista di risultati IM reali (len = budget) come <id>.torch in
+    """Saves the list of real IM results (len = budget) as <id>.torch in
     folder."""
     torch.save(list(results), os.path.join(folder, f"{query_id}.torch"))
 
 
 def save_skipped_as_txt(query_ids, preds_dir, folder):
-    """Copia il .txt di retrieval delle query skippate SENZA image matching
-    (es. su/): non c'e' nessun inlier da inventare, resta valido il retrieval."""
+    """Copies the retrieval .txt of the queries skipped WITHOUT image matching
+    (e.g. su/): there are no inliers to invent, the retrieval remains valid."""
     if not query_ids:
         return
     os.makedirs(folder, exist_ok=True)
@@ -301,18 +302,18 @@ def save_skipped_as_txt(query_ids, preds_dir, folder):
 
 def run_im_topN_subset(preds_dir, query_ids, output_dir, budget, matcher_name,
                         device="cpu", im_size=512, inliers_dir=None):
-    """IM sui primi `budget` candidati per ogni query in query_ids; salva un
+    """IM on the first `budget` candidates for each query in query_ids; saves a
     .torch (len = budget) in output_dir/top{budget}/.
 
-    inliers_dir: modalita' OFFLINE, taglia i .torch precalcolati ai primi
-    `budget` candidati invece di rifare il matching."""
+    inliers_dir: OFFLINE mode, trims the precomputed .torch files to the first
+    `budget` candidates instead of redoing the matching."""
     if not query_ids:
         return
     folder = budget_folder(output_dir, budget)
 
     if inliers_dir is not None:
         missing = []
-        for q_id in tqdm(query_ids, desc=f"top-{budget} da .torch precalcolati"):
+        for q_id in tqdm(query_ids, desc=f"top-{budget} from precomputed .torch"):
             res = load_precomputed_results(inliers_dir, q_id, k=budget)
             if not res:
                 missing.append(q_id)
@@ -322,7 +323,7 @@ def run_im_topN_subset(preds_dir, query_ids, output_dir, budget, matcher_name,
         return
 
     matcher = get_matcher(matcher_name, device=device)
-    for q_id in tqdm(query_ids, desc=f"IM top-{budget} sulle query selezionate"):
+    for q_id in tqdm(query_ids, desc=f"IM top-{budget} on the selected queries"):
         out_file = os.path.join(folder, f"{q_id}.torch")
         if os.path.exists(out_file):
             continue
@@ -339,12 +340,13 @@ def run_im_topN_subset(preds_dir, query_ids, output_dir, budget, matcher_name,
 
 
 # ============================================================
-# RESUME — una query e' "fatta" se gia' finalizzata in un topK
+# RESUME — a query is "done" if already finalized in a topK
 # ============================================================
 
 def query_already_done(output_dir, query_id, budgets):
-    """True se la query e' gia' salvata (.torch o .txt) in uno dei topK da una
-    run precedente. Usato dal sequenziale per riprendere per-query."""
+    """True if the query is already saved (.torch or .txt) in one of the topK
+    folders from a previous run. Used by the sequential method to resume
+    per-query."""
     for b in budgets:
         folder = os.path.join(output_dir, f"top{b}")
         if (os.path.exists(os.path.join(folder, f"{query_id}.torch")) or
@@ -354,39 +356,39 @@ def query_already_done(output_dir, query_id, budgets):
 
 
 # ============================================================
-# PARTIZIONAMENTO
+# PARTITIONING
 #
-# num_inliers BASSI = query incerta -> serve rerank (num_inliers < threshold).
-# Per i regressori la probability modella P(serve rerank), quindi
-# probability > tau -> rerank (mai il contrario).
+# LOW num_inliers = uncertain query -> needs rerank (num_inliers < threshold).
+# For the regressors, probability models P(needs rerank), so
+# probability > tau -> rerank (never the other way around).
 # ============================================================
 
 def partition_by_threshold(num_inliers_by_query, threshold):
-    """num_inliers < threshold -> serve rerank. Altrimenti skip."""
+    """num_inliers < threshold -> needs rerank. Otherwise skip."""
     rerank_ids = [q for q, n in num_inliers_by_query.items() if n < threshold]
     skip_ids   = [q for q, n in num_inliers_by_query.items() if n >= threshold]
     return rerank_ids, skip_ids
 
 
 def partition_by_probability(prob_by_query, tau):
-    """probability > tau -> serve rerank. Altrimenti skip."""
+    """probability > tau -> needs rerank. Otherwise skip."""
     rerank_ids = [q for q, p in prob_by_query.items() if p > tau]
     skip_ids   = [q for q, p in prob_by_query.items() if p <= tau]
     return rerank_ids, skip_ids
 
 
 # ============================================================
-# REGRESSIONE LOGISTICA (applicazione, non training)
+# LOGISTIC REGRESSION (application, not training)
 # ============================================================
 
 def apply_sigmoid(signals_by_query, model_json):
-    """Applica scaler + sigmoide a {id: {feature: valore, ...}}. Ritorna {id: prob}.
+    """Applies scaler + sigmoid to {id: {feature: value, ...}}. Returns {id: prob}.
 
-    Accetta model_json in due formati:
-      - PIATTO:   {feat_cols, scaler_mean, scaler_scale, coef, intercept, ...}
-      - ANNIDATO: {feature_sets: {<fs>: {regressors: {<target>: <piatto>}}}}
-    Per regressori a 1 feature non dipende dal NOME della feature (il segnale
-    runtime usa 'inliers', il JSON puo' avere 'feature_0'/'num_inliers_top1')."""
+    Accepts model_json in two formats:
+      - FLAT:   {feat_cols, scaler_mean, scaler_scale, coef, intercept, ...}
+      - NESTED: {feature_sets: {<fs>: {regressors: {<target>: <flat>}}}}
+    For single-feature regressors it does not depend on the feature NAME (the
+    runtime signal uses 'inliers', the JSON may have 'feature_0'/'num_inliers_top1')."""
     reg = _extract_flat_regressor(model_json)
     feat_cols = reg["feat_cols"]
     mean  = np.array(reg["scaler_mean"])
@@ -407,41 +409,41 @@ def apply_sigmoid(signals_by_query, model_json):
 
 
 def _extract_flat_regressor(model_json):
-    """Ritorna il dict regressore PIATTO (feat_cols/scaler_*/coef/intercept) da
-    un model_json che puo' essere gia' piatto oppure annidato
-    (feature_sets -> <fs> -> regressors -> <target>). Se annidato con piu'
-    regressori e' un errore: il deploy non saprebbe quale usare."""
+    """Returns the FLAT regressor dict (feat_cols/scaler_*/coef/intercept) from
+    a model_json that may already be flat or nested
+    (feature_sets -> <fs> -> regressors -> <target>). If nested with more than
+    one regressor it is an error: the deploy would not know which one to use."""
     if "coef" in model_json and "intercept" in model_json:
-        return model_json                       # gia' piatto
+        return model_json                       # already flat
     if "feature_sets" in model_json:
         fs = model_json["feature_sets"]
         regressors = fs[next(iter(fs))]["regressors"]
         if len(regressors) != 1:
             raise ValueError(
-                f"model.json annidato con piu' regressori {list(regressors)}: "
-                "il deploy non sa quale usare (serve un solo target)."
+                f"model.json nested with more than one regressor {list(regressors)}: "
+                "the deploy does not know which one to use (a single target is needed)."
             )
         return next(iter(regressors.values()))
     raise ValueError(
-        f"Formato model.json non riconosciuto (chiavi={list(model_json.keys())})."
+        f"Unrecognised model.json format (keys={list(model_json.keys())})."
     )
 
 
 # ============================================================
-# SEGNALE Score Uncertainty (SU) — solo per su/ e su_inliers/
-# Calcolato dalle distanze L2 del retrieval, nessun image matching.
+# Score Uncertainty (SU) SIGNAL — only for su/ and su_inliers/
+# Computed from the retrieval L2 distances, no image matching.
 # ============================================================
 
 def load_z_data_distances(z_data_path):
-    """Carica z_data.torch (--save_for_uncertainty) e ritorna {id: array_L2},
-    id = stringa dell'indice (stessa convenzione di preds/<idx>.txt)."""
+    """Loads z_data.torch (--save_for_uncertainty) and returns {id: array_L2},
+    id = string index (same convention as preds/<idx>.txt)."""
     data = torch.load(z_data_path, map_location="cpu", weights_only=False)
     distances = np.asarray(data["distances"], dtype=float)  # (N, K)
     return {str(i): distances[i] for i in range(distances.shape[0])}
 
 
 def l2_to_su(l2_distances, k=10, alpha=0.5, eps=1e-12):
-    """s_i = 1/(1+L2_i); RS = media(s_1..k / s_0); SD = mediana(s)/max;
+    """s_i = 1/(1+L2_i); RS = mean(s_1..k / s_0); SD = median(s)/max;
     SU = alpha*RS + (1-alpha)*SD."""
     d = np.asarray(l2_distances, dtype=float)[:k]
     s = 1.0 / (1.0 + d)
@@ -453,14 +455,14 @@ def l2_to_su(l2_distances, k=10, alpha=0.5, eps=1e-12):
 
 
 # ============================================================
-# RUNNER GENERICI
+# GENERIC RUNNERS
 #   scalar  -> youden / best_r1 / efficiency / local
 #   logistic single -> logistic_hard / logistic_help
 # ============================================================
 
 def run_scalar_method(preds_dir, threshold, matcher_name, device, im_size,
                        num_preds, output_dir, inliers_dir=None):
-    # IM solo sul top-1 di tutte le query: e' la feature di decisione
+    # IM only on the top-1 of every query: it is the decision feature
     results_top1 = run_im_top1_with_results(preds_dir, matcher_name, device, im_size,
                                             inliers_dir=inliers_dir)
     inliers = {q: r["num_inliers"] for q, r in results_top1.items()}
@@ -468,12 +470,12 @@ def run_scalar_method(preds_dir, threshold, matcher_name, device, im_size,
     rerank_ids, skip_ids = partition_by_threshold(inliers, threshold)
     print_summary(rerank_ids, skip_ids)
 
-    # skip -> top1/: salva il risultato IM del solo top-1 (gia' calcolato)
+    # skip -> top1/: saves the IM result of the top-1 only (already computed)
     folder1 = budget_folder(output_dir, 1)
     for q in skip_ids:
         save_results_torch(q, [results_top1[q]], folder1)
 
-    # rerank -> top{num_preds}/: IM completo
+    # rerank -> top{num_preds}/: full IM
     run_im_topN_subset(preds_dir, rerank_ids, output_dir, num_preds,
                         matcher_name, device, im_size, inliers_dir=inliers_dir)
 
@@ -503,13 +505,13 @@ def run_logistic_single(preds_dir, tau, model, matcher_name, device, im_size,
 def print_summary(rerank_ids, skip_ids):
     total = len(rerank_ids) + len(skip_ids)
     pct = 100 * len(rerank_ids) / total if total else 0.0
-    print(f"\nQuery totali: {total}")
+    print(f"\nTotal queries: {total}")
     print(f"  Rerank (top-20): {len(rerank_ids):5d}  ({pct:.1f}%)")
-    print(f"  Skip (solo top-1): {len(skip_ids):5d}  ({100 - pct:.1f}%)")
+    print(f"  Skip (top-1 only): {len(skip_ids):5d}  ({100 - pct:.1f}%)")
 
 
 # ============================================================
-# TRAINING + VALIDATION dei metodi su/ e su_inliers/
+# TRAINING + VALIDATION of the su/ and su_inliers/ methods
 # ============================================================
 
 import pandas as pd
@@ -517,32 +519,28 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 
-# Colonne richieste nel CSV candidate-level.
-#   BASE_REQUIRED_COLS: feature + label necessarie a CHIUNQUE.
-#   SU_REQUIRED_COLS:   in piu' la l2_distance, richiesta SOLO da chi usa SU
-#                       (metodi su/ e su_inliers/). Vedi load_query_level(needs_l2).
+# Columns required in the candidate-level CSV.
+
 BASE_REQUIRED_COLS = ["query_id", "retrieval_rank",
                       "num_inliers", "is_positive", "rerank_rank_topK"]
 SU_REQUIRED_COLS   = BASE_REQUIRED_COLS + ["l2_distance"]
 
-# i tre target/criteri di calibrazione
 SU_TARGETS  = ("hard", "help", "hurts")
 SU_CRITERIA = ("P(hard)", "P(help)", "P(help)-aP(hurts)")
 
-
-# --- LOADER: CSV candidate-level -> DataFrame a livello query + label -------
-
 def load_query_level(csv_dir_or_file, k=10, alpha=0.5, needs_l2=True):
-    """Legge uno o piu' CSV candidate-level (dir o file singolo), collassa al
-    livello query e calcola SU (via l2_to_su), inliers (negato) e le label
-    hard/helps/hurts. Usato da training (per X,y) e validation (per X + correct_*).
+    """Reads one or more candidate-level CSVs (dir or single file), collapses
+    to query level and computes SU (via l2_to_su), inliers (negated) and the
+    hard/helps/hurts labels. Used by training (for X,y) and validation (for X
+    + correct_*).
 
-    needs_l2: se True (default) la colonna l2_distance e' OBBLIGATORIA (serve a
-    calcolare SU: metodi su/ e su_inliers/). Se False (metodi che NON usano SU,
-    es. logistic_help/logistic_hard/youden/...) la L2 non e' richiesta: se manca
-    viene riempita con NaN e la colonna SU risulta NaN (non usata da quei metodi).
+    needs_l2: if True (default) the l2_distance column is REQUIRED (needed to
+    compute SU: su/ and su_inliers/ methods). If False (methods that do NOT
+    use SU, e.g. logistic_help/logistic_hard/youden/...) L2 is not required:
+    if missing it is filled with NaN and the SU column comes out NaN (not
+    used by those methods).
 
-    Colonne ritornate: query_id_full, source_file, SU, inliers, num_inliers_top1,
+    Returned columns: query_id_full, source_file, SU, inliers, num_inliers_top1,
       correct_0, correct_full_rerank, hard, helps, hurts
     """
     if os.path.isdir(csv_dir_or_file):
@@ -550,7 +548,7 @@ def load_query_level(csv_dir_or_file, k=10, alpha=0.5, needs_l2=True):
     else:
         files = [csv_dir_or_file]
     if not files:
-        raise FileNotFoundError(f"Nessun CSV trovato in {csv_dir_or_file}")
+        raise FileNotFoundError(f"No CSV found in {csv_dir_or_file}")
 
     req = SU_REQUIRED_COLS if needs_l2 else BASE_REQUIRED_COLS
 
@@ -560,20 +558,17 @@ def load_query_level(csv_dir_or_file, k=10, alpha=0.5, needs_l2=True):
         df = pd.read_csv(fp)
         missing = [c for c in req if c not in df.columns]
         if missing:
-            raise ValueError(f"{fp}: colonne mancanti {missing}")
+            raise ValueError(f"{fp}: missing columns {missing}")
 
-        # l2_distance opzionale quando SU non serve: placeholder NaN cosi' il
-        # resto (num_inliers_top1, correct_*) si calcola comunque.
         if "l2_distance" not in df.columns:
             df["l2_distance"] = np.nan
 
         for qid, g in df.groupby("query_id", sort=False):
             g = g.sort_values("retrieval_rank")
             if len(g) < k:
-                continue  # SU non calcolabile
+                continue  # SU not computable
 
             l2 = g["l2_distance"].to_numpy(dtype=float)
-            # SU solo se la L2 c'e' davvero; altrimenti NaN (metodi non-SU).
             su = float("nan") if np.isnan(l2).all() else l2_to_su(l2, k=k, alpha=alpha)
 
             top1 = g.iloc[0]
@@ -589,9 +584,9 @@ def load_query_level(csv_dir_or_file, k=10, alpha=0.5, needs_l2=True):
                 "query_id_full":       f"{stem}::{qid}",
                 "source_file":         stem,
                 "SU":                  float(su),
-                # convenzione SU: pochi inlier -> feature alta -> query incerta
+                # SU convention: few inliers -> high feature -> uncertain query
                 "inliers":             -float(top1["num_inliers"]),
-                # grezzo (non negato): feature per i metodi logistici su num_inliers
+                # raw (not negated): feature for the logistic methods on num_inliers
                 "num_inliers_top1":    float(top1["num_inliers"]),
                 "correct_0":           correct_0,
                 "correct_full_rerank": correct_full_rerank,
@@ -601,11 +596,11 @@ def load_query_level(csv_dir_or_file, k=10, alpha=0.5, needs_l2=True):
             })
 
     if not rows:
-        raise ValueError("Nessuna query valida estratta dai CSV (controlla k e le colonne).")
+        raise ValueError("No valid query extracted from the CSVs (check k and the columns).")
     return pd.DataFrame(rows)
 
 
-# --- TRAINING di un singolo regressore --------------------------------------
+# --- TRAINING of a single regressor --------------------------------------
 
 def fit_regressor(X, y):
     clf = Pipeline([
@@ -630,7 +625,7 @@ def regressor_to_dict(clf, feat_cols):
     }
 
 
-# --- Ricostruzione + applicazione regressore per la grid-search -------------
+# --- Reconstruction + application of the regressor for the grid-search -------------
 
 def regressor_from_dict(d):
     sc = StandardScaler()
@@ -646,13 +641,13 @@ def regressor_from_dict(d):
 
 
 def predict_proba_pos(clf, X):
-    """P(classe positiva). Nome esplicito per non confondersi con
-    apply_sigmoid (che opera su dict per i metodi scalari/logistici)."""
+    """P(positive class). Explicit name so it is not confused with
+    apply_sigmoid (which operates on dicts for the scalar/logistic methods)."""
     return clf.predict_proba(X)[:, 1]
 
 
 def clean_scores(scores):
-    """NaN/inf -> valori finiti (mediana / max / min finiti). Per la grid-search."""
+    """NaN/inf -> finite values (median / finite max / finite min). For the grid-search."""
     scores = np.asarray(scores, dtype=float)
     finite = np.isfinite(scores)
     if np.all(finite):
@@ -666,17 +661,14 @@ def clean_scores(scores):
 
 
 # ============================================================
-# FEATURE PROGRESSIVE SEQUENTIAL (deploy) — costruite live dai risultati IM
-# accumulati.
-# accumulated[q] = lista di risultati IM dei candidati con retrieval_rank
-# 1..len, IN ORDINE di retrieval_rank (indice i -> retrieval_rank i+1).
+# SEQUENTIAL PROGRESSIVE FEATURES
 # ============================================================
 
 def _progressive_feats_from_results(results_upto_b):
-    """results_upto_b: lista di risultati IM dei candidati con retrieval_rank<=b,
-    in ordine di rank. Ritorna (max_inliers, second_max, gap, best_rank,
-    top1_is_best): ordina per num_inliers desc, tie su retrieval_rank asc."""
-    # (num_inliers, retrieval_rank) con rank = indice+1
+    """results_upto_b: list of IM results of candidates with retrieval_rank<=b,
+    in rank order. Returns (max_inliers, second_max, gap, best_rank,
+    top1_is_best): sorts by num_inliers desc, tie on retrieval_rank asc."""
+    
     items = [(float(r["num_inliers"]), i + 1) for i, r in enumerate(results_upto_b)]
     items.sort(key=lambda t: (-t[0], t[1]))     # num_inliers desc, rank asc
     max_inl, best_rank = items[0]
@@ -686,15 +678,15 @@ def _progressive_feats_from_results(results_upto_b):
 
 
 def sequential_features(accumulated_q, gate):
-    """Costruisce il vettore feature per il gate ('gate1'|'gate5'|'gate10') dai
-    risultati IM accumulati per una query.
-    accumulated_q: lista risultati IM (rank 1..N visti finora).
-    Ritorna una lista di float (ordine posizionale = feat_cols del model.json)."""
+    """Builds the feature vector for the gate ('gate1'|'gate5'|'gate10') from
+    the IM results accumulated for a query.
+    accumulated_q: list of IM results (rank 1..N seen so far).
+    Returns a list of floats (positional order = feat_cols of the model.json)."""
     num_inliers_top1 = float(accumulated_q[0]["num_inliers"])
     if gate == "gate1":
         return [num_inliers_top1]
 
-    # feature del blocco top5 (primi 5 candidati visti)
+    # top5 block features (first 5 candidates seen)
     up5 = accumulated_q[:5]
     max5, second5, gap5, brank5, isbest5 = _progressive_feats_from_results(up5)
 
@@ -705,18 +697,18 @@ def sequential_features(accumulated_q, gate):
     if gate == "gate10":
         up10 = accumulated_q[:10]
         max10, second10, gap10, brank10, isbest10 = _progressive_feats_from_results(up10)
-        # NB asimmetria: per il blocco top5 NON c'e' second_max, solo gap.
+        # NB asymmetry: for the top5 block there is NO second_max, only the gap.
         # [num_inliers_top1, max_top5, gap_top5, best_rank_top5, top1_is_best_top5,
         #  max_top10, second_max_top10, gap_top10, best_rank_top10, top1_is_best_top10]
         return [num_inliers_top1, max5, gap5, float(brank5), float(isbest5),
                 max10, second10, gap10, float(brank10), float(isbest10)]
 
-    raise ValueError(f"gate sconosciuto: {gate}")
+    raise ValueError(f"unknown gate: {gate}")
 
 
 def apply_sigmoid_vector(feature_vector, model_json):
-    """Come apply_sigmoid ma per UN vettore feature gia' ordinato
-    posizionalmente (usato dal sequential multi-feature). Ritorna P(classe 1)."""
+    """Like apply_sigmoid but for A SINGLE feature vector already ordered
+    positionally (used by the multi-feature sequential method). Returns P(class 1)."""
     reg = _extract_flat_regressor(model_json)
     mean  = np.array(reg["scaler_mean"], dtype=float)
     scale = np.array(reg["scaler_scale"], dtype=float)
@@ -724,7 +716,7 @@ def apply_sigmoid_vector(feature_vector, model_json):
     b     = float(reg["intercept"][0])
     x = np.asarray(feature_vector, dtype=float)
     if x.shape[0] != mean.shape[0]:
-        raise ValueError(f"Mismatch feature: vettore len {x.shape[0]}, "
-                         f"modello vuole {mean.shape[0]}.")
+        raise ValueError(f"Feature mismatch: vector len {x.shape[0]}, "
+                         f"the model wants {mean.shape[0]}.")
     z = (x - mean) / scale
     return 1.0 / (1.0 + np.exp(-(float(np.dot(w, z)) + b)))
