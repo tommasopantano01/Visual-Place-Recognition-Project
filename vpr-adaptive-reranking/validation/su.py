@@ -1,8 +1,5 @@
 """
-validation/su.py — SU family (su | su_inliers). Mirror of methods/su.py.
-
-No training. Loads the trained regressors JSON (hard/help/hurts, downloaded
-from Google Drive by download_models.py into validation/<subdir>/) and
+Loads the trained regressors JSON (hard/help/hurts) and
 grid-searches on the validation CSV the parameters of ALL three criteria:
   P(hard) > tau                     ->  hard_tau
   P(help) > tau                     ->  help_tau
@@ -20,11 +17,6 @@ Writes in validation/<subdir>/:
   selection_<model>_<matcher>.csv   3 rows (one per criterion): val_csv, metrics, params
   sweep_<model>_<matcher>_<crit>.csv  full grid per criterion (crit: hard | help | cs)
 and updates validation/summary.csv (one row per criterion).
-
-Usage (Colab cell):
-    !python VPR-Adaptive-ReRanking/validation/su.py --features su \\
-        --val-csv /content/drive/MyDrive/VPR/candidate_level/val_cosplace_superpoint-lg.csv \\
-        --model cosplace --matcher superpoint-lg
 """
 import argparse
 import sys
@@ -59,9 +51,6 @@ def run(features, val_csv, model, matcher, model_json=None, top_k=20, out_dir=No
     if not model_json.exists():
         raise FileNotFoundError(
             f"model JSON not found: {model_json}\n"
-            "  -> run validation/download_models.py (downloads the trained regressors from Google Drive)"
-            " or pass --model-json")
-
     print(f"[{FAMILY}/{features}] {model}/{matcher}  <- {val_csv}")
     res = run_validation(model_json, val_csv, criteria=CRITERIA, taus=TAUS_GRID,
                          alphas=ALPHAS_GRID, feature_set=feature_set)
