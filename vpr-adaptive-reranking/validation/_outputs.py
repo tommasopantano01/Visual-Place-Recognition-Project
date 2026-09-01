@@ -3,18 +3,13 @@ _outputs.py — Naming conventions and output writers shared by every
 validation script (thresholds.py, logistic.py, su.py, sequential.py).
 
 Every validation run writes, inside validation/<subdir>/:
-  threshold_<model>_<matcher>.csv   ONE row, NUMERIC columns only.
-                                    This is the file read by the deploy
-                                    scripts in methods/ (via _common.load_threshold_csv).
-  selection_<model>_<matcher>.csv   ONE row, human readable: method, validation
-                                    CSV used, metrics and chosen parameters.
-  sweep_<model>_<matcher>*.csv      the full grid explored (for plots/tables).
+  threshold_<model>_<matcher>.csv   ONE row, NUMERIC only — read by methods/
+  selection_<model>_<matcher>.csv   ONE row, human readable
+  sweep_<model>_<matcher>*.csv      the full grid explored
+and upserts one row per (method, model, matcher) into validation/summary.csv.
 
-and upserts one row per (method, model, matcher) into validation/summary.csv,
-so that all validated thresholds and parameters are visible in a single file.
-
-Model / matcher names are normalised (aliases below) so that the output file
-names are always canonical, e.g. "sp-lg" -> "superpoint-lg".
+Model / matcher names are normalised (aliases below) so that different
+spellings map to one canonical name.
 """
 import csv
 import os
