@@ -1,13 +1,6 @@
 """
-methods/Thresholds.py — Deploy della famiglia hard-threshold
-(youden | best_r1 | efficiency | local).
-
-Regola: rerank del top-20 se num_inliers_top1 < T, altrimenti si tiene
-l'ordine di retrieval. T viene letto da validation/<subdir>/threshold_<model>_<matcher>.csv.
-
-    python VPR-Adaptive-ReRanking/methods/Thresholds.py --method youden \
-        --preds-dir <preds/> --model cosplace --matcher superpoint-lg \
-        --inliers-dir <top20 .torch/> --output-dir <out/>
+Regola: rerank del top-20 se num_inliers_top1 < T, altrimenti si tiene l'ordine di retrieval.
+T viene letto da validation/<subdir>/threshold_<model>_<matcher>.csv.
 """
 import argparse
 import sys
@@ -18,7 +11,6 @@ from _common import load_threshold_csv, run_scalar_method
 
 _ARR_DIR = Path(__file__).resolve().parent.parent
 
-# nome metodo -> sottocartella in validation/
 METHODS = {
     "youden":     "youden",
     "best_r1":    "bestR1",
