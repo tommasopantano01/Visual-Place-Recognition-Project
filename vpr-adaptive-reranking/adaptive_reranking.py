@@ -1,18 +1,8 @@
 """
-adaptive_reranking.py — Orchestratore del deploy.
+adaptive_reranking.py — Test orchestrator.
 
-Un solo comando per tutti i metodi: --threshold sceglie il metodo, tutti gli
-altri argomenti vengono inoltrati allo script della famiglia corrispondente
-in methods/.
-
-    python VPR-Adaptive-ReRanking/adaptive_reranking.py \
-        --threshold logistic_help \
-        --preds-dir <preds/> --model cosplace --matcher superpoint-lg \
-        --inliers-dir <cartella .torch top-20> --output-dir <out/>
-
---inliers-dir attiva la modalita' OFFLINE: usa l'image matching top-20 gia'
-calcolato invece di rifarlo. Senza, il matching viene eseguito live (serve GPU
-+ image-matching-models + le immagini dei dataset).
+One single command for every method: --threshold picks the method, all other
+arguments are forwarded to the corresponding family script in methods/.
 """
 import argparse
 import subprocess
@@ -22,7 +12,6 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 _METHODS_DIR = _HERE / "methods"
 
-# --threshold -> (script in methods/, argomenti fissi da anteporre)
 METHODS = {
     "youden":                  ("Thresholds.py", ["--method", "youden"]),
     "best_r1":                 ("Thresholds.py", ["--method", "best_r1"]),
@@ -38,21 +27,20 @@ METHODS = {
 
 
 def build_command(method, extra_args):
-    """Comando completo da eseguire per il metodo scelto."""
     script_name, fixed_args = METHODS[method]
     script_path = _METHODS_DIR / script_name
     if not script_path.exists():
-        raise FileNotFoundError(f"Script non trovato: {script_path}")
+        raise FileNotFoundError(f"Script not found: {script_path}")
     return [sys.executable, str(script_path)] + fixed_args + list(extra_args)
 
 
 def parse_known():
     parser = argparse.ArgumentParser(
-        description="Adaptive reranking — orchestratore del deploy",
-        epilog=f"Metodi disponibili: {', '.join(METHODS)}",
+        description="Adaptive reranking — deploy orchestrator",
+        epilog=f"Available methods: {', '.join(METHODS)}",
     )
     parser.add_argument("--threshold", required=True, choices=list(METHODS.keys()),
-                        help="metodo di decisione da usare")
+                        help="decision method to use")
     return parser.parse_known_args()
 
 
