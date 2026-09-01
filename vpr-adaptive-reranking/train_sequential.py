@@ -3,18 +3,12 @@ train_sequential.py — TRAINING-ONLY for the sequential cascade (gates 1/5/10).
 
 Fits the 3 logistic gates on the TRAINING candidate-level CSV and writes
     validation/sequential/seq_model_continue_{1,5,10}_<model>_<matcher>.json
-ready to be calibrated with:
-    validation/sequential.py --val-csv <candidate_level_val.csv> --model ... --matcher ...
+ready to be calibrated with: validation/sequential.py
 
 It chooses NO threshold: tau1/tau5/tau10 are picked by validation/sequential.py
-on a DIFFERENT split.
 
 Features and labels are built by the very functions that validation/sequential.py
 uses, so training and validation can never drift apart.
-
-Usage:
-    python vpr-adaptive-reranking/train_sequential.py \
-        --train-csv <candidate_level_train.csv> --model cosplace --matcher superpoint-lg
 """
 import argparse
 import json
@@ -44,7 +38,7 @@ def train_and_save(train_csv, out_dir, model, matcher):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"[sequential] TRAINING from {train_csv}")
-    df = load_query_seq(train_csv)          # features + labels, same code as validation
+    df = load_query_seq(train_csv)
     print(f"  N queries: {len(df)}")
 
     paths = []
