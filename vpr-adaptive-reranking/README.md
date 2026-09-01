@@ -117,7 +117,6 @@ python match_queries_preds.py \
 | `--threshold` | Rule | IM cost | Training | Needs L2 |
 |---|---|---|---|---|
 | `youden` / `best_r1` / `efficiency` | rerank if `num_inliers_top1 < T` | 1 | no | no |
-| `local` | non-parametric `P(helps)` | 1 | — | **not implemented** |
 | `logistic_hard` | rerank if `P(hard) > tau` | 1 | yes | no |
 | `logistic_help` | rerank if `P(help) > tau` | 1 | yes | no |
 | `logistic_cost_sensitive` | rerank if `P(help) − α·P(hurts) > tau` | 1 | yes | no |
