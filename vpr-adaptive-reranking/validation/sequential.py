@@ -199,7 +199,7 @@ def _find_gate_json(models_dir, gate_num, model, matcher):
     raise FileNotFoundError(
         f"No JSON for gate{gate_num} in {models_dir} "
         f"(model='{model}', matcher='{matcher}'). Patterns tried: {pats}\n"
-        "  -> run validation/download_models.py or pass --models-dir")
+        "  -> download the trained regressors or pass --models-dir")
 
 
 def load_gate_models(models_dir, model, matcher):
@@ -212,7 +212,7 @@ def load_gate_models(models_dir, model, matcher):
     with open(g1) as f:  m1 = json.load(f)
     with open(g5) as f:  m5 = json.load(f)
     with open(g10) as f: m10 = json.load(f)
-    # expected number of features (faithful to the notebook)
+    # expected number of features
     for name, m, exp in (("gate1", m1, 1), ("gate5", m5, 6), ("gate10", m10, 10)):
         n = len(m["feat_cols"])
         if n != exp:
