@@ -1,18 +1,13 @@
 """
-methods/su.py — Deploy of the SU family (su | su_inliers).
+methods/su.py — test of the SU family (su | su_inliers).
 
-SU (Score Uncertainty) is computed from the retrieval L2 distances alone
+SU is computed from the retrieval L2 distances alone
 (z_data.torch), therefore:
   su          the decision costs NO image matching. Skipped queries end up
               in top0/<id>.txt (budget 0: no IM done).
   su_inliers  also uses num_inliers_top1, so the IM on the top-1 of every
               query is needed. Skipped ones end up in top1/<id>.torch.
 In both cases the uncertain queries go to top{num_preds}/<id>.torch.
-
-    python VPR-Adaptive-ReRanking/methods/su.py --features su \
-        --preds-dir <preds/> --z-data <z_data.torch> \
-        --model cosplace --matcher superpoint-lg \
-        --inliers-dir <top20 .torch/> --output-dir <out/>
 """
 import argparse
 import json
@@ -22,12 +17,14 @@ from pathlib import Path
 import numpy as np
 
 _HERE = Path(__file__).resolve().parent
-sys.path.append(str(_HERE.parent))          # VPR-Adaptive-ReRanking/  (for _common)
+sys.path.append(str(_HERE.parent))
+sys.path.append(str(_HERE.parent / "validation"))
 from _common import (
     load_z_data_distances, l2_to_su, get_query_ids, print_summary,
     load_threshold_csv, run_im_top1_with_results, run_im_topN_subset,
     save_results_torch, save_skipped_as_txt, budget_folder,
 )
+from _outputs import canon_model, canon_matcher
 
 _ARR_DIR = _HERE.parent
 
@@ -88,12 +85,13 @@ def parse_args():
 
 
 def main(args):
+    model, matcher = canon_model(args.model), canon_matcher(args.matcher)
     subdir, feature_set, json_tmpl = FEATURES[args.features]
     val_dir = _ARR_DIR / "validation" / subdir
     model_json = Path(args.model_json or
-                      val_dir / json_tmpl.format(model=args.model, matcher=args.matcher))
+                      val_dir / json_tmpl.format(model=model, matcher=matcher))
     threshold_csv = Path(args.threshold_csv or
-                         val_dir / f"threshold_{args.model}_{args.matcher}.csv")
+                         val_dir / f"threshold_{model}_{matcher}.csv")
     if not model_json.exists():
         raise FileNotFoundError(
             f"Model JSON not found: {model_json}\n"
@@ -103,7 +101,7 @@ def main(args):
         raise FileNotFoundError(
             f"Threshold not found: {threshold_csv}\n"
             f"  -> run first: validation/su.py --features {args.features} "
-            f"--model {args.model} --matcher {args.matcher} --val-csv <candidate_level_val.csv>")
+            f"--model {model} --matcher {matcher} --val-csv <candidate_level_val.csv>")
 
     with open(model_json) as f:
         model_data = json.load(f)
@@ -115,7 +113,7 @@ def main(args):
     if "tau" not in hp:
         raise ValueError(f"{threshold_csv}: no '{pfx}*' column for criterion "
                          f"{args.criterion} (re-run validation/su.py for this pair)")
-    print(f"criterion = {args.criterion}   params = {hp}   [{args.model}/{args.matcher}]")
+    print(f"criterion = {args.criterion}   params = {hp}   [{model}/{matcher}]")
 
     query_ids = get_query_ids(args.preds_dir)
     l2_by_query = load_z_data_distances(args.z_data)
