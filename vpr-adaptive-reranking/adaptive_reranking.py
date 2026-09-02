@@ -16,7 +16,6 @@ METHODS = {
     "youden":                  ("Thresholds.py", ["--method", "youden"]),
     "best_r1":                 ("Thresholds.py", ["--method", "best_r1"]),
     "efficiency":              ("Thresholds.py", ["--method", "efficiency"]),
-    "local":                   ("Thresholds.py", ["--method", "local"]),
     "logistic_hard":           ("logistic.py",   ["--method", "hard"]),
     "logistic_help":           ("logistic.py",   ["--method", "help"]),
     "logistic_cost_sensitive": ("logistic.py",   ["--method", "cost_sensitive"]),
