@@ -3,7 +3,7 @@ From the validation candidate-level CSV it builds the sweep of
 thresholds T on num_inliers_top1 (rerank if inliers_top1 < T) and selects T
 with the chosen criterion.
 
-Writes in validation/<subdir>/ (subdir: youden | bestR1 | efficiency | local):
+Writes in validation/<subdir>/ (subdir: youden | bestR1 | efficiency ):
   threshold_<model>_<matcher>.csv   threshold, r1_adaptive_pct, saving_pct   (read by deploy)
   selection_<model>_<matcher>.csv   method, val_csv, metrics, params
   sweep_<model>_<matcher>.csv       full sweep (one row per T)
@@ -26,7 +26,6 @@ METHODS = {
     "youden":     ("youden",     lambda sw, r: select_youden_threshold(sw)),
     "best_r1":    ("bestR1",     lambda sw, r: select_best_r1_threshold(sw)),
     "efficiency": ("efficiency", lambda sw, r: select_eff95_threshold(sw, retention=r)),
-    "local":      ("local",      None),
 }
 
 
